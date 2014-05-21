@@ -276,3 +276,9 @@ class AsyncfluxClientTestCase(AsyncfluxTestCase):
         with self.assertRaisesRegexp(TypeError,
                                      r'^name_or_database must be an instance'):
             yield self.client.delete_database(None)
+
+    def test_repr(self):
+        host = 'localhost'
+        port = 8086
+        self.assertEqual(repr(AsyncfluxClient(str(host), port)),
+                         "AsyncfluxClient('%s', %d)" % (host, port))

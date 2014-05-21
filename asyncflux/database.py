@@ -24,3 +24,6 @@ class Database(object):
     @asyncflux_coroutine
     def delete(self):
         yield self.client.delete_database(self.name)
+
+    def __repr__(self):
+        return "Database(%r, %r)" % (self.client, self.name)

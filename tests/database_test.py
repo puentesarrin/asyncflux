@@ -57,3 +57,12 @@ class DatabaseTestCase(AsyncfluxTestCase):
         current_databases = self.sync_client.get_database_names()
         for db_name in current_databases:
             self.assertTrue(db_name not in current_databases)
+
+    def test_repr(self):
+        host = 'localhost'
+        port = 8086
+        client = AsyncfluxClient(host, port)
+        db_name = 'db'
+        self.assertEqual(repr(Database(client, db_name)),
+                         ("Database(AsyncfluxClient('%s', %d), '%s')" %
+                          (host, port, db_name)))
