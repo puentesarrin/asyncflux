@@ -4,7 +4,7 @@ import sys
 from unittest import defaultTestLoader, TextTestRunner, TestSuite
 
 TESTS = ('asyncflux_test', 'client_test', 'database_test',
-         'clusteradmins_test', )
+         'clusteradmins_test', 'util_test', )
 
 
 def make_suite(prefix='', extra=(), force_all=False):
