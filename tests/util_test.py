@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 from asyncflux import AsyncfluxClient
 from asyncflux.testing import AsyncfluxTestCase
-from asyncflux.util import asyncflux_coroutine
 
 
 class TestAsyncFluxCoroutine(AsyncfluxTestCase):
