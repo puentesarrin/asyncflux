@@ -112,7 +112,7 @@ class AsyncfluxClient(object):
         raise gen.Return(databases)
 
     @asyncflux_coroutine
-    def get_database_names(self, database_class=unicode):
+    def get_database_names(self):
         databases = yield self._fetch('/db')
         raise gen.Return([db['name'] for db in databases])
 
