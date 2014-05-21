@@ -6,7 +6,7 @@ Asynchronous client for InfluxDB_ and Tornado_.
 Installation
 ============
 
-You can use pip_ to install AsyncFlux:
+You can use pip_ to install Asyncflux:
 
 .. code-block:: bash
 
