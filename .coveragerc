@@ -1,0 +1,6 @@
+[run]
+source = asyncflux
+
+[report]
+exclude_lines =
+    pragma: no cover
