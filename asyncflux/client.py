@@ -17,25 +17,24 @@ class AsyncfluxClient(object):
 
     HOST = 'localhost'
     PORT = 8086
+    SCHEME = 'http'
     USERNAME = 'root'
     PASSWORD = 'root'
 
     def __init__(self, host=None, port=None, username=None, password=None,
                  io_loop=None, **kwargs):
-        if host is None:
-            host = self.HOST
-        if port is None:
-            port = self.PORT
-        if username is None:
-            username = self.USERNAME
-        if password is None:
-            password = self.PASSWORD
+        scheme = self.SCHEME
+        host = host or self.HOST
+        port = port or self.PORT
+        username = username or self.USERNAME
+        password = password or self.PASSWORD
         if not isinstance(port, int):
             raise TypeError("port must be an instance of int")
 
         if '://' in host:
             if host.startswith('http://') or host.startswith('https://'):
                 result = urlparse(host)
+                scheme = result.scheme
                 host = result.hostname
                 port = result.port or port
                 username = result.username or username
@@ -44,6 +43,7 @@ class AsyncfluxClient(object):
                 index = host.find("://")
                 raise ValueError('Invalid URL scheme: %s' % host[:index])
 
+        self.__scheme = scheme
         self.__host = host
         self.__port = port
         self.__username = username
@@ -62,7 +62,7 @@ class AsyncfluxClient(object):
 
     @property
     def base_url(self):
-        return 'http://%s:%s' % (self.host, self.port, )
+        return '%s://%s:%s' % (self.__scheme, self.host, self.port, )
 
     @property
     def username(self):
