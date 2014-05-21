@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 from asyncflux import AsyncfluxClient
+from asyncflux.clusteradmins import ClusterAdmins
 from asyncflux.testing import AsyncfluxTestCase, gen_test
 from asyncflux.util import InfluxException
 
@@ -146,3 +147,11 @@ class ClusterAdminsTestCase(AsyncfluxTestCase):
         with self.assertRaisesRegexp(InfluxException,
                                      "User me doesn't exists"):
             yield self.cluster_admins.delete('me')
+
+    def test_repr(self):
+        host = 'localhost'
+        port = 8086
+        client = AsyncfluxClient(host, port)
+        self.assertEqual(repr(ClusterAdmins(client)),
+                         ("ClusterAdmins(AsyncfluxClient('%s', %d))" %
+                          (host, port)))

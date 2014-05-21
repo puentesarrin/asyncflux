@@ -35,3 +35,6 @@ class ClusterAdmins(object):
     def delete(self, username):
         yield self.client._fetch('/cluster_admins/%(username)s',
                                  {'username': username}, method='DELETE')
+
+    def __repr__(self):
+        return 'ClusterAdmins(%r)' % self.client
