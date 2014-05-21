@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+"""Tools for cluster administration"""
 from tornado import gen
 
 from asyncflux.util import asyncflux_coroutine

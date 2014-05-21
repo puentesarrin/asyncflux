@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+"""General-purpose utilities"""
 import functools
 
 from tornado import gen

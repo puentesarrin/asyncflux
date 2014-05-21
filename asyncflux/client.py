@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+"""Connection to InfluxDB"""
 import functools
 import json
 try:

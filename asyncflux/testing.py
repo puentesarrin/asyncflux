@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+"""Unit testing support for asynchronous code"""
 import json
 import random
 import string

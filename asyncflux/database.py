@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+"""Database level operations"""
 from asyncflux.util import asyncflux_coroutine
 
 
