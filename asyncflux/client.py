@@ -51,6 +51,7 @@ class AsyncfluxClient(object):
 
         self.__json = kwargs.get('json_module', json)
         self.io_loop = io_loop or ioloop.IOLoop.current()
+        self.http_client = httpclient.AsyncHTTPClient(self.io_loop)
 
     @property
     def host(self):
@@ -93,13 +94,12 @@ class AsyncfluxClient(object):
     @asyncflux_coroutine
     def _fetch(self, path, path_params={}, qs={}, body=None, method='GET'):
         try:
-            http_client = httpclient.AsyncHTTPClient(self.io_loop)
             url = (self.base_url + path) % path_params
             qs.update({'u': self.username, 'p': self.password})
             if isinstance(body, dict):
                 body = self.__json.dumps(body)
-            response = yield http_client.fetch(httputil.url_concat(url, qs),
-                                               body=body, method=method)
+            response = yield self.http_client.fetch(
+                httputil.url_concat(url, qs), body=body, method=method)
             if hasattr(response, 'body') and response.body:
                 raise gen.Return(self.__json.loads(response.body))
         except httpclient.HTTPError as e:
