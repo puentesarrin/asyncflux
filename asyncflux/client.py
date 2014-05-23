@@ -92,7 +92,7 @@ class AsyncfluxClient(object):
         return self.__getattr__(name)
 
     @asyncflux_coroutine
-    def _fetch(self, path, path_params={}, qs={}, body=None, method='GET'):
+    def request(self, path, path_params={}, qs={}, body=None, method='GET'):
         try:
             url = (self.base_url + path) % path_params
             qs.update({'u': self.username, 'p': self.password})
@@ -107,13 +107,13 @@ class AsyncfluxClient(object):
 
     @asyncflux_coroutine
     def get_databases(self):
-        dbs = yield self._fetch('/db')
+        dbs = yield self.request('/db')
         databases = [database.Database(self, db['name']) for db in dbs]
         raise gen.Return(databases)
 
     @asyncflux_coroutine
     def get_database_names(self):
-        databases = yield self._fetch('/db')
+        databases = yield self.request('/db')
         raise gen.Return([db['name'] for db in databases])
 
     @asyncflux_coroutine
@@ -124,7 +124,7 @@ class AsyncfluxClient(object):
         if not isinstance(name, basestring):
             raise TypeError("name_or_database must be an instance of "
                             "%s or Database" % (basestring.__name__,))
-        yield self._fetch('/db', body={'name': name}, method='POST')
+        yield self.request('/db', body={'name': name}, method='POST')
 
     @asyncflux_coroutine
     def delete_database(self, name_or_database):
@@ -134,8 +134,8 @@ class AsyncfluxClient(object):
         if not isinstance(name, basestring):
             raise TypeError("name_or_database must be an instance of "
                             "%s or Database" % (basestring.__name__,))
-        yield self._fetch('/db/%(database)s', {'database': name},
-                          method='DELETE')
+        yield self.request('/db/%(database)s', {'database': name},
+                           method='DELETE')
 
     def __repr__(self):
         return "AsyncfluxClient(%r, %r)" % (self.host, self.port)
