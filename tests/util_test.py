@@ -3,7 +3,7 @@ from asyncflux import AsyncfluxClient
 from asyncflux.testing import AsyncfluxTestCase
 
 
-class TestAsyncFluxCoroutine(AsyncfluxTestCase):
+class TestAsyncfluxCoroutine(AsyncfluxTestCase):
 
     def test_non_callable(self):
         client = AsyncfluxClient()
