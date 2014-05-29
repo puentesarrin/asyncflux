@@ -102,6 +102,35 @@ class SynchroInfluxDBClient(object):
         for user in admins:
             self.delete_cluster_admin(user)
 
+    def validate_db_user(self, database, username, password):
+        try:
+            self.fetch('/db/%s/authenticate' % database,
+                       credentials={'u': username, 'p': password})
+            return True
+        except Exception as e:
+            return False
+
+    def add_db_user(self, database, username, password):
+        self.fetch('/db/%s/users' % database, method='POST',
+                   body={'name': username, 'password': password})
+
+    def get_all_db_users(self, database):
+        return self.fetch('/db/%s/users' % database)
+
+    def get_all_db_user_names(self, database):
+        response = self.get_all_db_users(database)
+        return [u['name'] for u in response]
+
+    def delete_db_user(self, database, username):
+        self.fetch('/db/%(database)s/users/%(username)s',
+                   {'database': database, 'username': username},
+                   method='DELETE')
+
+    def delete_all_db_users(self, database):
+        users = self.get_all_db_user_names(database)
+        for user in users:
+            self.delete_db_user(database, user)
+
 
 class AsyncfluxTestCase(AsyncTestCase):
 

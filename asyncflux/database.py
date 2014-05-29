@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 """Database level operations"""
+from asyncflux import users
 from asyncflux.util import asyncflux_coroutine
 
 
@@ -16,6 +17,10 @@ class Database(object):
     @property
     def name(self):
         return self.__name
+
+    @property
+    def users(self):
+        return users.Users(self)
 
     @asyncflux_coroutine
     def create(self):
