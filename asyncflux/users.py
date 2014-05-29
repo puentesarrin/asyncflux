@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Tools for cluster administration"""
+"""Tools for database users"""
 from asyncflux.common import BaseUsers
 
 
