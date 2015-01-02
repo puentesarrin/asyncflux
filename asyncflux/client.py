@@ -17,13 +17,12 @@ class AsyncfluxClient(object):
 
     HOST = 'localhost'
     PORT = 8086
-    SCHEME = 'http'
     USERNAME = 'root'
     PASSWORD = 'root'
 
     def __init__(self, host=None, port=None, username=None, password=None,
-                 io_loop=None, **kwargs):
-        scheme = self.SCHEME
+                 is_secure=False, io_loop=None, **kwargs):
+        scheme = 'https' if is_secure else 'http'
         host = host or self.HOST
         port = port or self.PORT
         username = username or self.USERNAME
