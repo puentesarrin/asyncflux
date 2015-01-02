@@ -98,11 +98,11 @@ class AsyncfluxClient(object):
             qs = qs or {}
 
             url = (self.base_url + path) % path_params
-            qs.update({'u': self.username, 'p': self.password})
             if isinstance(body, dict):
                 body = self.__json.dumps(body)
             response = yield self.http_client.fetch(
-                httputil.url_concat(url, qs), body=body, method=method)
+                httputil.url_concat(url, qs), body=body, method=method,
+                auth_username=self.username, auth_password=self.password)
             if hasattr(response, 'body') and response.body:
                 raise gen.Return(self.__json.loads(response.body))
         except httpclient.HTTPError as e:
