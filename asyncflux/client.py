@@ -109,6 +109,11 @@ class AsyncfluxClient(object):
             raise InfluxException(e.response)
 
     @asyncflux_coroutine
+    def ping(self):
+        status = yield self.request('/ping')
+        raise gen.Return(status)
+
+    @asyncflux_coroutine
     def get_databases(self):
         dbs = yield self.request('/db')
         databases = [database.Database(self, db['name']) for db in dbs]
