@@ -6,7 +6,11 @@ from tornado import gen
 
 
 class InfluxException(Exception):
-    pass
+
+    def __init__(self, http_response):
+        self.response = http_response
+        self.message = http_response.body
+        super(InfluxException, self).__init__(self.message)
 
 
 def asyncflux_coroutine(f):

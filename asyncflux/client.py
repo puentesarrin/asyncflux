@@ -102,7 +102,7 @@ class AsyncfluxClient(object):
             if hasattr(response, 'body') and response.body:
                 raise gen.Return(self.__json.loads(response.body))
         except httpclient.HTTPError as e:
-            raise InfluxException(e.response.body)
+            raise InfluxException(e.response)
 
     @asyncflux_coroutine
     def get_databases(self):
