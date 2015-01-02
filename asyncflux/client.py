@@ -32,7 +32,7 @@ class AsyncfluxClient(object):
             raise TypeError("port must be an instance of int")
 
         if '://' in host:
-            if host.startswith('http://') or host.startswith('https://'):
+            if host.startswith(('http://', 'https://')):
                 result = urlparse(host)
                 scheme = result.scheme
                 host = result.hostname
