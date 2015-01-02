@@ -91,8 +91,12 @@ class AsyncfluxClient(object):
         return self.__getattr__(name)
 
     @asyncflux_coroutine
-    def request(self, path, path_params={}, qs={}, body=None, method='GET'):
+    def request(self, path, path_params=None, qs=None, body=None,
+                method='GET'):
         try:
+            path_params = path_params or {}
+            qs = qs or {}
+
             url = (self.base_url + path) % path_params
             qs.update({'u': self.username, 'p': self.password})
             if isinstance(body, dict):
