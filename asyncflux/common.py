@@ -6,8 +6,6 @@ from asyncflux.util import asyncflux_coroutine
 
 class BaseUsers(object):
 
-    FIELD_FOR_NAMES = 'username'
-
     def __init__(self, client):
         self.__client = client
 
@@ -21,7 +19,7 @@ class BaseUsers(object):
     @asyncflux_coroutine
     def get_all(self):
         users = yield self.client.request(self._get_path())
-        raise gen.Return([u[self.FIELD_FOR_NAMES] for u in users])
+        raise gen.Return([u['name'] for u in users])
 
     @asyncflux_coroutine
     def add(self, username, password):

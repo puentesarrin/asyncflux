@@ -5,8 +5,6 @@ from asyncflux.common import BaseUsers
 
 class Users(BaseUsers):
 
-    FIELD_FOR_NAMES = 'name'
-
     def __init__(self, database):
         self.__database = database
         super(Users, self).__init__(database.client)
