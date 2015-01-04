@@ -62,8 +62,10 @@ class DatabaseTestCase(AsyncfluxTestCase):
         client = AsyncfluxClient()
         db_name = 'foo'
         db = client[db_name]
-        users = [{'name': 'foo', 'isAdmin': False, 'writeTo': '.*', 'readFrom': '.*'},
-                 {'name': 'bar', 'isAdmin': False, 'writeTo': '.*', 'readFrom': '.*'}]
+        users = [{'name': 'foo', 'isAdmin': False, 'writeTo': '.*',
+                  'readFrom': '.*'},
+                 {'name': 'bar', 'isAdmin': False, 'writeTo': '.*',
+                  'readFrom': '.*'}]
         user_names = [u['name'] for u in users]
 
         with self.patch_fetch_mock(client) as m:
@@ -78,8 +80,10 @@ class DatabaseTestCase(AsyncfluxTestCase):
         client = AsyncfluxClient()
         db_name = 'foo'
         db = client[db_name]
-        users = [{'name': 'foo', 'isAdmin': False, 'writeTo': '.*', 'readFrom': '.*'},
-                 {'name': 'bar', 'isAdmin': False, 'writeTo': '.*', 'readFrom': '.*'}]
+        users = [{'name': 'foo', 'isAdmin': False, 'writeTo': '.*',
+                  'readFrom': '.*'},
+                 {'name': 'bar', 'isAdmin': False, 'writeTo': '.*',
+                  'readFrom': '.*'}]
         user_names = [u['name'] for u in users]
 
         with self.patch_fetch_mock(client) as m:
@@ -144,7 +148,8 @@ class DatabaseTestCase(AsyncfluxTestCase):
         with self.patch_fetch_mock(client) as m:
             self.setup_fetch_mock(m, 200)
             response = yield db.create_user(username, password,
-                                            read_from=read_from, write_to=write_to)
+                                            read_from=read_from,
+                                            write_to=write_to)
             self.assertIsNone(response)
 
             payload = {'name': username, 'password': password,

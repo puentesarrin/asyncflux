@@ -221,8 +221,8 @@ class AsyncfluxClientTestCase(AsyncfluxTestCase):
 
         # Using an unsupported type
         with self.patch_fetch_mock(client) as m:
-            with self.assertRaisesRegexp(TypeError,
-                                         r'^name_or_database must be an instance'):
+            re_exc_msg = r'^name_or_database must be an instance'
+            with self.assertRaisesRegexp(TypeError, re_exc_msg):
                 yield client.create_database(None)
             self.assertFalse(m.called)
 
@@ -261,8 +261,8 @@ class AsyncfluxClientTestCase(AsyncfluxTestCase):
 
         # Using an unsupported type
         with self.patch_fetch_mock(client) as m:
-            with self.assertRaisesRegexp(TypeError,
-                                         r'^name_or_database must be an instance'):
+            re_exc_msg = r'^name_or_database must be an instance'
+            with self.assertRaisesRegexp(TypeError, re_exc_msg):
                 yield client.delete_database(None)
             self.assertFalse(m.called)
 
