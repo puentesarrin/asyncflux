@@ -30,6 +30,8 @@ def main():
     parser = OptionParser()
     parser.add_option('--with-pep8', action='store_true', dest='with_pep8',
                       default=True)
+    parser.add_option('--with-pyflakes', action='store_true',
+                      dest='with_pyflakes', default=True)
     parser.add_option('--force-all', action='store_true', dest='force_all',
                       default=False)
     parser.add_option('-v', '--verbose', action='count', dest='verbosity',
@@ -62,6 +64,20 @@ def main():
             report = guide.check_files()
             if report.total_errors:
                 sys.exit(1)
+
+    if options.with_pyflakes:
+        try:
+            import pyflakes
+            assert pyflakes  # silence pyflakes
+        except ImportError:
+            sys.stderr.write('# Could not find pyflakes library.\n')
+            sys.exit(1)
+
+        from pyflakes import api, reporter
+        warnings = api.checkRecursive(['subte', 'tests'],
+                                      reporter._makeDefaultReporter())
+        if warnings > 0:
+            sys.exit(1)
 
     suite = make_suite('', tuple(extra_args), options.force_all)
 
