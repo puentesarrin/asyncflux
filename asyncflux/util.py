@@ -1,16 +1,9 @@
 # -*- coding: utf-8 -*-
 """General-purpose utilities"""
 import functools
+import re
 
 from tornado import gen
-
-
-class InfluxException(Exception):
-
-    def __init__(self, http_response):
-        self.response = http_response
-        self.message = http_response.body
-        super(InfluxException, self).__init__(self.message)
 
 
 def asyncflux_coroutine(f):
@@ -38,3 +31,20 @@ def asyncflux_coroutine(f):
         else:
             return future
     return wrapper
+
+_SNAKE_RE = re.compile('(?!^)([A-Z]+)')
+
+
+def snake_case(string):
+    return re.sub(_SNAKE_RE, r'_\1', string).lower()
+
+
+def snake_case_dict(_dict):
+    raw_dict = _dict.copy()
+    result = {}
+    try:
+        while 1:
+            key, value = raw_dict.popitem()
+            result[snake_case(key)] = value
+    except KeyError:
+        return result

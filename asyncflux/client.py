@@ -9,8 +9,9 @@ except ImportError:
 
 from tornado import gen, httpclient, httputil, ioloop
 
-from asyncflux import clusteradmins, database
-from asyncflux.util import asyncflux_coroutine, InfluxException
+from asyncflux import clusteradmin, database
+from asyncflux.errors import AsyncfluxError
+from asyncflux.util import asyncflux_coroutine
 
 
 class AsyncfluxClient(object):
@@ -80,10 +81,6 @@ class AsyncfluxClient(object):
     def password(self, value):
         self.__password = value
 
-    @property
-    def cluster_admins(self):
-        return clusteradmins.ClusterAdmins(self)
-
     def __getattr__(self, name):
         return database.Database(self, name)
 
@@ -106,7 +103,7 @@ class AsyncfluxClient(object):
             if hasattr(response, 'body') and response.body:
                 raise gen.Return(self.__json.loads(response.body))
         except httpclient.HTTPError as e:
-            raise InfluxException(e.response)
+            raise AsyncfluxError(e.response)
 
     @asyncflux_coroutine
     def ping(self):
@@ -144,6 +141,33 @@ class AsyncfluxClient(object):
                             "%s or Database" % (basestring.__name__,))
         yield self.request('/db/%(database)s', {'database': name},
                            method='DELETE')
+
+    @asyncflux_coroutine
+    def get_cluster_admin_names(self):
+        admins = yield self.request('/cluster_admins')
+        raise gen.Return([a['name'] for a in admins])
+
+    @asyncflux_coroutine
+    def get_cluster_admins(self):
+        cas = yield self.request('/cluster_admins')
+        admins = [clusteradmin.ClusterAdmin(self, ca['name']) for ca in cas]
+        raise gen.Return(admins)
+
+    @asyncflux_coroutine
+    def create_cluster_admin(self, username, password):
+        yield self.request('/cluster_admins', method='POST',
+                           body={'name': username, 'password': password})
+
+    @asyncflux_coroutine
+    def change_cluster_admin_password(self, username, new_password):
+        yield self.request('/cluster_admins/%(username)s',
+                           {'username': username}, method='POST',
+                           body={'password': new_password})
+
+    @asyncflux_coroutine
+    def delete_cluster_admin(self, username):
+        yield self.request('/cluster_admins/%(username)s',
+                           {'username': username}, method='DELETE')
 
     def __repr__(self):
         return "AsyncfluxClient(%r, %r)" % (self.host, self.port)
