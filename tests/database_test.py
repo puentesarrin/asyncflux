@@ -97,13 +97,15 @@ class DatabaseTestCase(AsyncfluxTestCase):
                                   body=json.dumps(payload))
 
         # Without permissions
-        payload = {'name': username, 'password': password, 'isAdmin': is_admin}
+        payload = {'name': username, 'password': password, 'isAdmin': False}
         with self.patch_fetch_mock(client) as m:
             self.setup_fetch_mock(m, 200)
-            response = yield db.create_user(username, password,
-                                            is_admin=is_admin)
+            response = yield db.create_user(username, password)
             self.assertIsInstance(response, User)
             self.assertEqual(response.name, username)
+            self.assertEqual(response.is_admin, False)
+            self.assertEqual(response.read_from, '.*')
+            self.assertEqual(response.write_to, '.*')
 
             self.assert_mock_args(m, '/db/%s/users' % db_name, method='POST',
                                   body=json.dumps(payload))

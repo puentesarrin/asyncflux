@@ -49,6 +49,8 @@ class Database(object):
         yield self.client.request('/db/%(database)s/users',
                                   {'database': self.name}, method='POST',
                                   body=payload)
+        read_from = read_from or '.*'
+        write_to = write_to or '.*'
         new_user = user.User(self, username, is_admin=is_admin,
                              read_from=read_from, write_to=write_to)
         raise gen.Return(new_user)
