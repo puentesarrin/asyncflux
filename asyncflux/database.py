@@ -54,6 +54,13 @@ class Database(object):
         raise gen.Return(new_user)
 
     @asyncflux_coroutine
+    def change_user_password(self, username, new_password):
+        yield self.client.request('/db/%(database)s/users/%(username)s',
+                                  {'database': self.name, 'username': username},
+                                  method='POST',
+                                  body={'password': new_password})
+
+    @asyncflux_coroutine
     def delete_user(self, username):
         yield self.client.request('/db/%(database)s/users/%(username)s',
                                   {'database': self.name, 'username': username},

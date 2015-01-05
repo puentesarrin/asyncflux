@@ -142,6 +142,46 @@ class DatabaseTestCase(AsyncfluxTestCase):
                                   body=json.dumps(payload))
 
     @gen_test
+    def test_change_user_password(self):
+        client = AsyncfluxClient()
+        db_name = 'foo'
+        db = client[db_name]
+        username = 'foo'
+        password = 'fubar'
+
+        payload = {'password': password}
+        with self.patch_fetch_mock(client) as m:
+            self.setup_fetch_mock(m, 200)
+            response = yield db.change_user_password(username, password)
+            self.assertIsNone(response)
+
+            self.assert_mock_args(m, '/db/%s/users/%s' % (db_name, username),
+                                  method='POST', body=json.dumps(payload))
+
+        # Non-existing user
+        response_body = "Invalid username %s" % username
+        with self.patch_fetch_mock(client) as m:
+            self.setup_fetch_mock(m, 400, body=response_body)
+            with self.assertRaisesRegexp(AsyncfluxError, response_body):
+                yield db.change_user_password(username, password)
+
+            self.assert_mock_args(m, '/db/%s/users/%s' % (db_name, username),
+                                  method='POST', body=json.dumps(payload))
+
+        # Invalid password
+        password = 'bar'
+        payload = {'password': password}
+        response_body = ('Password must be more than 4 and less than 56 '
+                         'characters')
+        with self.patch_fetch_mock(client) as m:
+            self.setup_fetch_mock(m, 400, body=response_body)
+            with self.assertRaisesRegexp(AsyncfluxError, response_body):
+                yield db.change_user_password(username, password)
+
+            self.assert_mock_args(m, '/db/%s/users/%s' % (db_name, username),
+                                  method='POST', body=json.dumps(payload))
+
+    @gen_test
     def test_delete_user(self):
         client = AsyncfluxClient()
         db_name = 'foo'
@@ -156,7 +196,7 @@ class DatabaseTestCase(AsyncfluxTestCase):
             self.assert_mock_args(m, '/db/%s/users/%s' % (db_name, username),
                                   method='DELETE')
 
-        # Non-existing cluster admin
+        # Non-existing user
         response_body = "User %s doesn't exists" % username
         with self.patch_fetch_mock(client) as m:
             self.setup_fetch_mock(m, 400, body=response_body)
