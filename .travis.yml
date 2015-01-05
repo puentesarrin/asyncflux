@@ -3,6 +3,8 @@ python:
   - 2.7
   - 3.2
   - 3.3
+  - 3.4
+  - pypy
 install:
   - pip install pep8 pyflakes coverage coveralls
   - pip install . --use-mirrors
