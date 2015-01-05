@@ -2,7 +2,10 @@
 """Unit testing support for asynchronous code"""
 import json
 import mock
-import StringIO
+try:
+    from StringIO import StringIO
+except:
+    from io import StringIO
 
 from tornado.gen import coroutine, Return
 from tornado.httpclient import HTTPError, HTTPRequest, HTTPResponse
@@ -25,7 +28,7 @@ class AsyncfluxTestCase(AsyncTestCase):
             if body:
                 if isinstance(body, (dict, list)):
                     body = json.dumps(body)
-                kwargs['buffer'] = StringIO.StringIO(body)
+                kwargs['buffer'] = StringIO(body)
             response = HTTPResponse(request, status_code, **kwargs)
             if status_code < 200 or status_code >= 300:
                 raise HTTPError(status_code, response=response)
