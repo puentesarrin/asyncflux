@@ -64,7 +64,7 @@ class ClusterAdminTestCase(AsyncfluxTestCase):
                                   method='DELETE')
 
         # Non-existing cluster admin
-        response_body = 'User %s already exists' % username
+        response_body = "User %s doesn't exists" % username
         with self.patch_fetch_mock(client) as m:
             self.setup_fetch_mock(m, 400, body=response_body)
             with self.assertRaisesRegexp(AsyncfluxError, response_body):
