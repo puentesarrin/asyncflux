@@ -1,24 +1,26 @@
 # -*- coding: utf-8 -*-
 """Tools for database users"""
+from asyncflux.util import asyncflux_coroutine
 
 
 class User(object):
 
-    def __init__(self, database, name, is_admin, write_to, read_from):
+    IS_ADMIN = False
+    READ_FROM = '.*'
+    WRITE_TO = '.*'
+
+    def __init__(self, database, name, is_admin=None, read_from=None,
+                 write_to=None):
         self.__database = database
         self.__client = database.client
         self.__name = name
-        self.__is_admin = is_admin
-        self.__write_to = write_to
-        self.__read_from = read_from
+        self.__is_admin = is_admin or self.IS_ADMIN
+        self.__read_from = read_from or self.READ_FROM
+        self.__write_to = write_to or self.WRITE_TO
 
     @property
     def database(self):
         return self.__database
-
-    @property
-    def client(self):
-        return self.__client
 
     @property
     def name(self):
@@ -36,5 +38,13 @@ class User(object):
     def read_from(self):
         return self.__read_from
 
+    @asyncflux_coroutine
+    def change_password(self, new_password):
+        yield self.database.change_user_password(self.name, new_password)
+
+    @asyncflux_coroutine
+    def delete(self):
+        yield self.database.delete(self.name)
+
     def __repr__(self):
-        return 'Users(%r)' % self.database
+        return 'User(%r, %r)' % (self.database, self.name)
