@@ -59,7 +59,7 @@ setup(
     author_email='puentesarrin@gmail.com',
     packages=['asyncflux'],
     keywords=['asyncflux', 'tornado', 'influxdb', 'influx', 'async'],
-    install_requires=['tornado >= 3.0'],
+    install_requires=['tornado>=3.0'],
     license='Apache License, Version 2.0',
     classifiers=[
         'Development Status :: 4 - Beta',
