@@ -27,8 +27,8 @@ class UserTestCase(AsyncfluxTestCase):
                                   method='POST',
                                   body=json.dumps({'password': password}))
 
-        # Non-existing cluster admin
-        response_body = 'Invalid user name %s' % username
+        # Non-existing user
+        response_body = 'Invalid username %s' % username
         with self.patch_fetch_mock(client) as m:
             self.setup_fetch_mock(m, 400, body=response_body)
             with self.assertRaisesRegexp(AsyncfluxError, response_body):
