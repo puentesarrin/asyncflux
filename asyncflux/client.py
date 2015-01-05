@@ -93,17 +93,19 @@ class AsyncfluxClient(object):
 
     @asyncflux_coroutine
     def request(self, path, path_params=None, qs=None, body=None,
-                method='GET'):
+                method='GET', auth_username=None, auth_password=None):
         try:
             path_params = path_params or {}
             qs = qs or {}
+            auth_username = auth_username or self.username
+            auth_password = auth_password or self.password
 
             url = (self.base_url + path) % path_params
             if isinstance(body, dict):
                 body = self.__json.dumps(body)
             response = yield self.http_client.fetch(
                 httputil.url_concat(url, qs), body=body, method=method,
-                auth_username=self.username, auth_password=self.password)
+                auth_username=auth_username, auth_password=auth_password)
             if hasattr(response, 'body') and response.body:
                 raise gen.Return(self.__json.loads(response.body))
         except httpclient.HTTPError as e:
