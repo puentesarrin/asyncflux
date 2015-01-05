@@ -11,7 +11,6 @@ except ImportError:
     from setuptools import setup
 
 from distutils.cmd import Command
-from asyncflux import __version__
 
 
 with open('README.rst') as f:
@@ -51,7 +50,7 @@ class DocCommand(Command):
 
 setup(
     name='asyncflux',
-    version=__version__,
+    version='0.0+',
     url='https://github.com/puentesarrin/asyncflux',
     description='Asynchronous client for InfluxDB and Tornado.',
     long_description=readme_content,
