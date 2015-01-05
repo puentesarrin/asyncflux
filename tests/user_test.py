@@ -37,6 +37,7 @@ class UserTestCase(AsyncfluxTestCase):
             self.setup_fetch_mock(m, 200)
             response = yield user.update(is_admin=is_admin)
             self.assertIsNone(response)
+            self.assertEqual(user.is_admin, is_admin)
 
             self.assert_mock_args(m, '/db/%s/users/%s' % (db_name, username),
                                   method='POST', body=json.dumps(payload))
@@ -48,6 +49,8 @@ class UserTestCase(AsyncfluxTestCase):
             response = yield user.update(read_from=read_from,
                                          write_to=write_to)
             self.assertIsNone(response)
+            self.assertEqual(user.read_from, read_from)
+            self.assertEqual(user.write_to, write_to)
 
             self.assert_mock_args(m, '/db/%s/users/%s' % (db_name, username),
                                   method='POST', body=json.dumps(payload))
@@ -124,6 +127,9 @@ class UserTestCase(AsyncfluxTestCase):
                                                     read_from=read_from,
                                                     write_to=write_to)
             self.assertIsNone(response)
+            self.assertEqual(user.is_admin, is_admin)
+            self.assertEqual(user.read_from, read_from)
+            self.assertEqual(user.write_to, write_to)
 
             self.assert_mock_args(m, '/db/%s/users/%s' % (db_name, username),
                                   method='POST', body=json.dumps(payload))
@@ -133,6 +139,7 @@ class UserTestCase(AsyncfluxTestCase):
             self.setup_fetch_mock(m, 200)
             yield user.change_privileges(is_admin, None, None)
             self.assertIsNone(response)
+            self.assertEqual(user.is_admin, is_admin)
 
             self.assert_mock_args(m, '/db/%s/users/%s' % (db_name, username),
                                   method='POST', body=json.dumps(payload))
@@ -174,6 +181,8 @@ class UserTestCase(AsyncfluxTestCase):
             response = yield user.change_permissions(read_from=read_from,
                                                      write_to=write_to)
             self.assertIsNone(response)
+            self.assertEqual(user.read_from, read_from)
+            self.assertEqual(user.write_to, write_to)
 
             self.assert_mock_args(m, '/db/%s/users/%s' % (db_name, username),
                                   method='POST', body=json.dumps(payload))
