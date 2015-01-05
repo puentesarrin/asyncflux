@@ -4,7 +4,11 @@ import json
 try:
     from urlparse import urlparse
 except ImportError:
-    from urllib.parse import urlparse
+    from urllib.parse import urlparse    # pragma: no cover
+if sys.version_info[0] >= 3:
+    basestring = str  # pragma: no cover
+else:
+    basestring = basestring  # pragma: no cover
 
 from tornado import gen, httpclient, httputil, ioloop
 

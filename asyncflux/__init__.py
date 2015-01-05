@@ -6,10 +6,10 @@ __all__ = ('__author__', '__since__', '__version__', 'version',
 
 version_tuple = (0, 0, '+')
 
-try:
-    basestring
-except:
-    basestring = str
+if sys.version_info[0] >= 3:
+    basestring = str  # pragma: no cover
+else:
+    basestring = basestring  # pragma: no cover
 
 
 def get_version_string():
