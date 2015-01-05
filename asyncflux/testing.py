@@ -4,7 +4,6 @@ import json
 import mock
 import StringIO
 
-from tornado.concurrent import Future
 from tornado.gen import coroutine, Return
 from tornado.httpclient import HTTPError, HTTPRequest, HTTPResponse
 from tornado.testing import AsyncTestCase, gen_test

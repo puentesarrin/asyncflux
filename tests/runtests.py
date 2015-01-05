@@ -74,7 +74,7 @@ def main():
             sys.exit(1)
 
         from pyflakes import api, reporter
-        warnings = api.checkRecursive(['subte', 'tests'],
+        warnings = api.checkRecursive(['asyncflux', 'tests'],
                                       reporter._makeDefaultReporter())
         if warnings > 0:
             sys.exit(1)

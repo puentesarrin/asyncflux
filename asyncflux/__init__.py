@@ -1,5 +1,9 @@
 # -*- coding: utf-8 -*-
 """Asynchronous client for InfluxDB and Tornado."""
+
+__all__ = ('__author__', '__since__', '__version__', 'version',
+           'AsyncfluxClient', )
+
 version_tuple = (0, 0, '+')
 
 try:

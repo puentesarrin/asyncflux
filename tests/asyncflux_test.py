@@ -9,6 +9,7 @@ class TestAsyncflux(unittest.TestCase):
     def test_asyncflux_client_alias(self):
         # Testing that asyncflux module imports client.AsyncfluxClient
         c = asyncflux.AsyncfluxClient()
+        self.assertIsNotNone(c)
 
     def test_version_string(self):
         asyncflux.version_tuple = (0, 0, 0)

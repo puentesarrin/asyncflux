@@ -62,7 +62,7 @@ class UserTestCase(AsyncfluxTestCase):
     def _test_add_fails_coro(self):
         username, password = 'me', 'mysecurepassword'
         yield self.db_users.add(username, password)
-        with self.assertRaisesRegexp(ASyncfluxError,
+        with self.assertRaisesRegexp(AsyncfluxError,
                                      'User me already exists'):
             yield self.db_users.add(username, password)
         self.sync_client.delete_db_user(self.db_name, username)
@@ -75,7 +75,6 @@ class UserTestCase(AsyncfluxTestCase):
             self.db_users.update(username, new_password,
                                  callback=self.stop_op)
             self.wait()
-        created_users = self.sync_client.get_all_db_user_names(self.db_name)
         for username, _, password in users:
             is_valid = self.sync_client.validate_db_user(self.db_name,
                                                          username, password)
@@ -94,7 +93,6 @@ class UserTestCase(AsyncfluxTestCase):
         for username, password, new_password in users:
             self.sync_client.add_db_user(self.db_name, username, password)
             yield self.db_users.update(username, new_password)
-        created_users = self.sync_client.get_all_db_user_names(self.db_name)
         for username, _, password in users:
             is_valid = self.sync_client.validate_db_user(self.db_name,
                                                          username, password)

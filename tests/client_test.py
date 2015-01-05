@@ -141,7 +141,6 @@ class AsyncfluxClientTestCase(AsyncfluxTestCase):
     @gen_test
     def test_get_database_names(self):
         client = AsyncfluxClient()
-        db_name = 'foo'
         databases = [{'name': 'foo'}, {'name': 'bar'}]
         db_names = [db['name'] for db in databases]
 
@@ -155,7 +154,6 @@ class AsyncfluxClientTestCase(AsyncfluxTestCase):
     @gen_test
     def test_get_databases(self):
         client = AsyncfluxClient()
-        db_name = 'foo'
         databases = [{'name': 'foo'}, {'name': 'bar'}]
         db_names = [db['name'] for db in databases]
 
