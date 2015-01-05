@@ -78,59 +78,66 @@ class DatabaseTestCase(AsyncfluxTestCase):
         db = client[db_name]
         username = 'foo'
         password = 'fubar'
+        is_admin = True
         read_from = '.*'
         write_to = '.*'
 
+        payload = {'name': username, 'password': password, 'isAdmin': is_admin,
+                   'readFrom': read_from, 'writeTo': write_to}
         with self.patch_fetch_mock(client) as m:
             self.setup_fetch_mock(m, 200)
-            response = yield db.create_user(username, password)
+            response = yield db.create_user(username, password,
+                                            is_admin=is_admin,
+                                            read_from=read_from,
+                                            write_to=write_to)
             self.assertIsInstance(response, User)
             self.assertEqual(response.name, username)
 
-            payload = {'name': username, 'password': password,
-                       'readFrom': read_from, 'writeTo': write_to}
             self.assert_mock_args(m, '/db/%s/users' % db_name, method='POST',
                                   body=json.dumps(payload))
 
         # Existing database user
+        payload = {'name': username, 'password': password, 'isAdmin': is_admin,
+                   'readFrom': read_from, 'writeTo': write_to}
         response_body = 'User %s already exists' % username
         with self.patch_fetch_mock(client) as m:
             self.setup_fetch_mock(m, 400, body=response_body)
             with self.assertRaisesRegexp(AsyncfluxError, response_body):
-                yield db.create_user(username, password)
+                yield db.create_user(username, password, is_admin=is_admin,
+                                     read_from=read_from, write_to=write_to)
 
-            payload = {'name': username, 'password': password,
-                       'readFrom': read_from, 'writeTo': write_to}
             self.assert_mock_args(m, '/db/%s/users' % db_name, method='POST',
                                   body=json.dumps(payload))
 
         # Invalid password
         password = 'bar'
+        payload = {'name': username, 'password': password, 'isAdmin': is_admin,
+                   'readFrom': read_from, 'writeTo': write_to}
         response_body = ('Password must be more than 4 and less than 56 '
                          'characters')
         with self.patch_fetch_mock(client) as m:
             self.setup_fetch_mock(m, 400, body=response_body)
             with self.assertRaisesRegexp(AsyncfluxError, response_body):
-                yield db.create_user(username, password)
+                yield db.create_user(username, password, is_admin=is_admin,
+                                     read_from=read_from, write_to=write_to)
 
-            payload = {'name': username, 'password': password,
-                       'readFrom': read_from, 'writeTo': write_to}
             self.assert_mock_args(m, '/db/%s/users' % db_name, method='POST',
                                   body=json.dumps(payload))
 
         # Non-default permissions
         read_from = '^$'
         write_to = '^$'
+        payload = {'name': username, 'password': password, 'isAdmin': is_admin,
+                   'readFrom': read_from, 'writeTo': write_to}
         with self.patch_fetch_mock(client) as m:
             self.setup_fetch_mock(m, 200)
             response = yield db.create_user(username, password,
+                                            is_admin=is_admin,
                                             read_from=read_from,
                                             write_to=write_to)
             self.assertIsInstance(response, User)
             self.assertEqual(response.name, username)
 
-            payload = {'name': username, 'password': password,
-                       'readFrom': read_from, 'writeTo': write_to}
             self.assert_mock_args(m, '/db/%s/users' % db_name, method='POST',
                                   body=json.dumps(payload))
 

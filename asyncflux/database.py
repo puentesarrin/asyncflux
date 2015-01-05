@@ -38,13 +38,14 @@ class Database(object):
         raise gen.Return(users)
 
     @asyncflux_coroutine
-    def create_user(self, username, password, read_from='.*', write_to='.*'):
-        payload = {'name': username, 'password': password,
+    def create_user(self, username, password, is_admin=False, read_from='.*',
+                    write_to='.*'):
+        payload = {'name': username, 'password': password, 'isAdmin': is_admin,
                    'readFrom': read_from, 'writeTo': write_to}
         yield self.client.request('/db/%(database)s/users',
                                   {'database': self.name}, method='POST',
                                   body=payload)
-        new_user = user.User(self, username, is_admin=False,
+        new_user = user.User(self, username, is_admin=is_admin,
                              read_from=read_from, write_to=write_to)
         raise gen.Return(new_user)
 
