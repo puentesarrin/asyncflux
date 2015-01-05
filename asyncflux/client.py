@@ -4,7 +4,7 @@ import json
 import sys
 try:
     from urlparse import urlparse
-except ImportError:
+except ImportError:  # pragma: no cover
     from urllib.parse import urlparse    # pragma: no cover
 if sys.version_info[0] >= 3:
     basestring = str  # pragma: no cover

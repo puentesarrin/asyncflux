@@ -4,8 +4,8 @@ import json
 import mock
 try:
     from StringIO import StringIO
-except:
-    from io import StringIO
+except ImportError:  # pragma: no cover
+    from io import StringIO  # pragma: no cover
 
 from tornado.gen import coroutine, Return
 from tornado.httpclient import HTTPError, HTTPRequest, HTTPResponse
