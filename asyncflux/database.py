@@ -21,10 +21,6 @@ class Database(object):
         return self.__name
 
     @asyncflux_coroutine
-    def create(self):
-        yield self.client.create_database(self.name)
-
-    @asyncflux_coroutine
     def delete(self):
         yield self.client.delete_database(self.name)
 
@@ -48,6 +44,9 @@ class Database(object):
         yield self.client.request('/db/%(database)s/users',
                                   {'database': self.name}, method='POST',
                                   body=payload)
+        new_user = user.User(self, username, is_admin=False,
+                             read_from=read_from, write_to=write_to)
+        raise gen.Return(new_user)
 
     @asyncflux_coroutine
     def delete_user(self, username):

@@ -129,6 +129,8 @@ class AsyncfluxClient(object):
             raise TypeError("name_or_database must be an instance of "
                             "%s or Database" % (basestring.__name__,))
         yield self.request('/db', body={'name': name}, method='POST')
+        new_database = database.Database(self, name)
+        raise gen.Return(new_database)
 
     @asyncflux_coroutine
     def delete_database(self, name_or_database):
@@ -156,6 +158,8 @@ class AsyncfluxClient(object):
     def create_cluster_admin(self, username, password):
         yield self.request('/cluster_admins', method='POST',
                            body={'name': username, 'password': password})
+        new_cluster_admin = clusteradmin.ClusterAdmin(self, username)
+        raise gen.Return(new_cluster_admin)
 
     @asyncflux_coroutine
     def change_cluster_admin_password(self, username, new_password):

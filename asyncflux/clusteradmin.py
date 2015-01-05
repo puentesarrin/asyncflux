@@ -18,10 +18,6 @@ class ClusterAdmin(object):
         return self.__name
 
     @asyncflux_coroutine
-    def create(self, password):
-        yield self.client.create_cluster_admin(self.name, password)
-
-    @asyncflux_coroutine
     def change_password(self, new_password):
         yield self.client.change_cluster_admin_password(self.name,
                                                         new_password)

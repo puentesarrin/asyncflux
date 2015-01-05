@@ -11,31 +11,6 @@ from asyncflux.user import User
 class DatabaseTestCase(AsyncfluxTestCase):
 
     @gen_test
-    def test_create(self):
-        client = AsyncfluxClient()
-        db_name = 'foo'
-        db = Database(client, db_name)
-
-        with self.patch_fetch_mock(client) as m:
-            self.setup_fetch_mock(m, 204)
-            response = yield db.create()
-            self.assertIsNone(response)
-
-            self.assert_mock_args(m, '/db', method='POST',
-                                  body=json.dumps({'name': db_name}))
-
-        # Existing database
-        response_body = 'database %s exists' % db_name
-        with self.patch_fetch_mock(client) as m:
-            self.setup_fetch_mock(m, 409, body=response_body)
-            with self.assertRaisesRegexp(AsyncfluxError, response_body):
-                response = yield db.create()
-                self.assertEqual(response, response_body)
-
-            self.assert_mock_args(m, '/db', method='POST',
-                                  body=json.dumps({'name': db_name}))
-
-    @gen_test
     def test_delete(self):
         client = AsyncfluxClient()
         db_name = 'foo'
@@ -109,7 +84,8 @@ class DatabaseTestCase(AsyncfluxTestCase):
         with self.patch_fetch_mock(client) as m:
             self.setup_fetch_mock(m, 200)
             response = yield db.create_user(username, password)
-            self.assertIsNone(response)
+            self.assertIsInstance(response, User)
+            self.assertEqual(response.name, username)
 
             payload = {'name': username, 'password': password,
                        'readFrom': read_from, 'writeTo': write_to}
@@ -150,7 +126,8 @@ class DatabaseTestCase(AsyncfluxTestCase):
             response = yield db.create_user(username, password,
                                             read_from=read_from,
                                             write_to=write_to)
-            self.assertIsNone(response)
+            self.assertIsInstance(response, User)
+            self.assertEqual(response.name, username)
 
             payload = {'name': username, 'password': password,
                        'readFrom': read_from, 'writeTo': write_to}

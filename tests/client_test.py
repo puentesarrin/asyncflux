@@ -176,7 +176,8 @@ class AsyncfluxClientTestCase(AsyncfluxTestCase):
             self.setup_fetch_mock(m, 201)
             client.create_database(db_name, callback=self.stop_op)
             response = self.wait()
-            self.assertIsNone(response)
+            self.assertIsInstance(response, Database)
+            self.assertEqual(response.name, db_name)
 
             self.assert_mock_args(m, '/db', method='POST',
                                   body=json.dumps({'name': db_name}))
@@ -202,7 +203,8 @@ class AsyncfluxClientTestCase(AsyncfluxTestCase):
         with self.patch_fetch_mock(client) as m:
             self.setup_fetch_mock(m, 201)
             response = yield client.create_database(db_name)
-            self.assertIsNone(response)
+            self.assertIsInstance(response, Database)
+            self.assertEqual(response.name, db_name)
 
             self.assert_mock_args(m, '/db', method='POST',
                                   body=json.dumps({'name': db_name}))
@@ -212,7 +214,8 @@ class AsyncfluxClientTestCase(AsyncfluxTestCase):
         with self.patch_fetch_mock(client) as m:
             self.setup_fetch_mock(m, 201)
             response = yield client.create_database(db)
-            self.assertIsNone(response)
+            self.assertIsInstance(response, Database)
+            self.assertEqual(response.name, db_name)
 
             self.assert_mock_args(m, '/db', method='POST',
                                   body=json.dumps({'name': db_name}))
@@ -311,7 +314,8 @@ class AsyncfluxClientTestCase(AsyncfluxTestCase):
         with self.patch_fetch_mock(client) as m:
             self.setup_fetch_mock(m, 200)
             response = yield client.create_cluster_admin(username, password)
-            self.assertIsNone(response)
+            self.assertIsInstance(response, ClusterAdmin)
+            self.assertEqual(response.name, username)
 
             self.assert_mock_args(m, '/cluster_admins', method='POST',
                                   body=json.dumps({'name': username,
