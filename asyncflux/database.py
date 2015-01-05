@@ -38,10 +38,14 @@ class Database(object):
         raise gen.Return(users)
 
     @asyncflux_coroutine
-    def create_user(self, username, password, is_admin=False, read_from='.*',
-                    write_to='.*'):
-        payload = {'name': username, 'password': password, 'isAdmin': is_admin,
-                   'readFrom': read_from, 'writeTo': write_to}
+    def create_user(self, username, password, is_admin=False, read_from=None,
+                    write_to=None):
+        payload = {'name': username, 'password': password, 'isAdmin': is_admin}
+        if bool(read_from) != bool(write_to):
+            raise ValueError('You have to provide read and write permissions')
+        elif read_from and write_to:
+            payload['readFrom'] = read_from
+            payload['writeTo'] = write_to
         yield self.client.request('/db/%(database)s/users',
                                   {'database': self.name}, method='POST',
                                   body=payload)
