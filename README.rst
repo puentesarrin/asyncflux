@@ -3,6 +3,14 @@ Asyncflux
 
 Asynchronous client for InfluxDB_ and Tornado_.
 
+.. image:: https://travis-ci.org/puentesarrin/asyncflux.png
+   :target: https://travis-ci.org/puentesarrin/asyncflux
+   :alt: Travis CI status
+
+.. image:: https://coveralls.io/repos/puentesarrin/asyncflux/badge.png
+   :target: https://coveralls.io/r/puentesarrin/asyncflux
+   :alt: Coveralls status
+
 Installation
 ============
 
