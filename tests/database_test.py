@@ -96,6 +96,18 @@ class DatabaseTestCase(AsyncfluxTestCase):
             self.assert_mock_args(m, '/db/%s/users' % db_name, method='POST',
                                   body=json.dumps(payload))
 
+        # Without permissions
+        payload = {'name': username, 'password': password, 'isAdmin': is_admin}
+        with self.patch_fetch_mock(client) as m:
+            self.setup_fetch_mock(m, 200)
+            response = yield db.create_user(username, password,
+                                            is_admin=is_admin)
+            self.assertIsInstance(response, User)
+            self.assertEqual(response.name, username)
+
+            self.assert_mock_args(m, '/db/%s/users' % db_name, method='POST',
+                                  body=json.dumps(payload))
+
         # Invalid permission argument values
         exc_msg = 'You have to provide read and write permissions'
         with self.assertRaisesRegexp(ValueError, exc_msg):
