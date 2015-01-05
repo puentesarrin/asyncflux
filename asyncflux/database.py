@@ -3,6 +3,7 @@
 from tornado import gen
 
 from asyncflux import user
+from asyncflux.errors import AsyncfluxError
 from asyncflux.util import asyncflux_coroutine, snake_case_dict
 
 
@@ -108,6 +109,17 @@ class Database(object):
         yield self.client.request('/db/%(database)s/users/%(username)s',
                                   {'database': self.name, 'username': username},
                                   method='DELETE')
+
+    @asyncflux_coroutine
+    def authenticate_user(self, username, password):
+        try:
+            yield self.client.request('/db/%(database)s/authenticate',
+                                      {'database': self.name},
+                                      auth_username=username,
+                                      auth_password=password)
+        except AsyncfluxError:
+            raise gen.Return(False)
+        raise gen.Return(True)
 
     def __repr__(self):
         return "Database(%r, %r)" % (self.client, self.name)

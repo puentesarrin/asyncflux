@@ -380,6 +380,34 @@ class DatabaseTestCase(AsyncfluxTestCase):
             self.assert_mock_args(m, '/db/%s/users/%s' % (db_name, username),
                                   method='DELETE')
 
+    @gen_test
+    def test_authenticate_user(self):
+        client = AsyncfluxClient()
+        db_name = 'foo'
+        db = client[db_name]
+        username = 'foo'
+        password = 'bar'
+
+        with self.patch_fetch_mock(client) as m:
+            self.setup_fetch_mock(m, 200)
+            response = yield db.authenticate_user(username, password)
+            self.assertTrue(response)
+
+            self.assert_mock_args(m, '/db/%s/authenticate' % db_name,
+                                  auth_username=username,
+                                  auth_password=password)
+
+        # Invalid credentials
+        response_body = 'Invalid username/password'
+        with self.patch_fetch_mock(client) as m:
+            self.setup_fetch_mock(m, 401, body=response_body)
+            response = yield db.authenticate_user(username, password)
+            self.assertFalse(response)
+
+            self.assert_mock_args(m, '/db/%s/authenticate' % db_name,
+                                  auth_username=username,
+                                  auth_password=password)
+
     def test_repr(self):
         host = 'localhost'
         port = 8086

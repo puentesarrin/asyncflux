@@ -179,5 +179,14 @@ class AsyncfluxClient(object):
         yield self.request('/cluster_admins/%(username)s',
                            {'username': username}, method='DELETE')
 
+    @asyncflux_coroutine
+    def authenticate_cluster_admin(self, username, password):
+        try:
+            yield self.request('/cluster_admins/authenticate',
+                               auth_username=username, auth_password=password)
+        except AsyncfluxError:
+            raise gen.Return(False)
+        raise gen.Return(True)
+
     def __repr__(self):
         return "AsyncfluxClient(%r, %r)" % (self.host, self.port)

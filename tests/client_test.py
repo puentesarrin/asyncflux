@@ -408,6 +408,34 @@ class AsyncfluxClientTestCase(AsyncfluxTestCase):
             self.assert_mock_args(m, '/cluster_admins/%s' % username,
                                   method='DELETE')
 
+    @gen_test
+    def test_authenticate_cluster_admin(self):
+        client = AsyncfluxClient()
+        username = 'foo'
+        password = 'bar'
+
+        with self.patch_fetch_mock(client) as m:
+            self.setup_fetch_mock(m, 200)
+            response = yield client.authenticate_cluster_admin(username,
+                                                               password)
+            self.assertTrue(response)
+
+            self.assert_mock_args(m, '/cluster_admins/authenticate',
+                                  auth_username=username,
+                                  auth_password=password)
+
+        # Invalid credentials
+        response_body = 'Invalid username/password'
+        with self.patch_fetch_mock(client) as m:
+            self.setup_fetch_mock(m, 401, body=response_body)
+            response = yield client.authenticate_cluster_admin(username,
+                                                               password)
+            self.assertFalse(response)
+
+            self.assert_mock_args(m, '/cluster_admins/authenticate',
+                                  auth_username=username,
+                                  auth_password=password)
+
     def test_repr(self):
         host = 'localhost'
         port = 8086
