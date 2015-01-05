@@ -38,6 +38,13 @@ class Database(object):
         users = [user.User(self, **snake_case_dict(u)) for u in us]
         raise gen.Return(users)
 
+    @asyncflux_coroutine
+    def get_user(self, username):
+        path_params = {'database': self.name, 'username': username}
+        u = yield self.client.request('/db/%(database)s/users/%(username)s',
+                                      path_params)
+        raise gen.Return(user.User(self, **snake_case_dict(u)))
+
     def __validate_permission_params(self, read_from=None, write_to=None,
                                      allow_nulls=True):
         if allow_nulls:

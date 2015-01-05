@@ -72,6 +72,35 @@ class DatabaseTestCase(AsyncfluxTestCase):
             self.assert_mock_args(m, '/db/%s/users' % db_name)
 
     @gen_test
+    def test_get_user(self):
+        client = AsyncfluxClient()
+        db_name = 'foo'
+        db = client[db_name]
+        username = 'foo'
+        user = {'name': username, 'isAdmin': False, 'writeTo': '^$',
+                'readFrom': '^$'}
+
+        with self.patch_fetch_mock(client) as m:
+            self.setup_fetch_mock(m, 200, body=user)
+            response = yield db.get_user('foo')
+            self.assertIsInstance(response, User)
+            self.assertEqual(response.name, user['name'])
+            self.assertEqual(response.is_admin, user['isAdmin'])
+            self.assertEqual(response.write_to, user['writeTo'])
+            self.assertEqual(response.read_from, user['readFrom'])
+
+            self.assert_mock_args(m, '/db/%s/users/%s' % (db_name, username))
+
+        # Non-existing database user
+        response_body = 'Invalid username %s' % username
+        with self.patch_fetch_mock(client) as m:
+            self.setup_fetch_mock(m, 400, body=response_body)
+            with self.assertRaisesRegexp(AsyncfluxError, response_body):
+                yield db.get_user(username)
+
+            self.assert_mock_args(m, '/db/%s/users/%s' % (db_name, username))
+
+    @gen_test
     def test_create_user(self):
         client = AsyncfluxClient()
         db_name = 'foo'
