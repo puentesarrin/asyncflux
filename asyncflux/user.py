@@ -44,7 +44,7 @@ class User(object):
 
     @asyncflux_coroutine
     def delete(self):
-        yield self.database.delete(self.name)
+        yield self.database.delete_user(self.name)
 
     def __repr__(self):
         return 'User(%r, %r)' % (self.database, self.name)

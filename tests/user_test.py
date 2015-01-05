@@ -51,6 +51,32 @@ class UserTestCase(AsyncfluxTestCase):
                                   method='POST',
                                   body=json.dumps({'password': password}))
 
+    @gen_test
+    def test_delete(self):
+        client = AsyncfluxClient()
+        db_name = 'foo'
+        db = client[db_name]
+        username = 'foo'
+        user = User(db, username)
+
+        with self.patch_fetch_mock(client) as m:
+            self.setup_fetch_mock(m, 200)
+            response = yield user.delete()
+            self.assertIsNone(response)
+
+            self.assert_mock_args(m, '/db/%s/users/%s' % (db_name, username),
+                                  method='DELETE')
+
+        # Non-existing user
+        response_body = "User %s doesn't exist" % username
+        with self.patch_fetch_mock(client) as m:
+            self.setup_fetch_mock(m, 400, body=response_body)
+            with self.assertRaisesRegexp(AsyncfluxError, response_body):
+                yield user.delete()
+
+            self.assert_mock_args(m, '/db/%s/users/%s' % (db_name, username),
+                                  method='DELETE')
+
     def test_repr(self):
         host = 'localhost'
         port = 8086
