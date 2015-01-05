@@ -166,6 +166,59 @@ class DatabaseTestCase(AsyncfluxTestCase):
                                   body=json.dumps(payload))
 
     @gen_test
+    def test_update_user(self):
+        client = AsyncfluxClient()
+        db_name = 'foo'
+        db = client[db_name]
+        username = 'foo'
+        password = 'fubar'
+        is_admin = True
+        read_from = '^$'
+        write_to = '^$'
+
+        # Update password
+        payload = {'password': password}
+        with self.patch_fetch_mock(client) as m:
+            self.setup_fetch_mock(m, 200)
+            response = yield db.update_user(username, password)
+            self.assertIsNone(response)
+
+            self.assert_mock_args(m, '/db/%s/users/%s' % (db_name, username),
+                                  method='POST', body=json.dumps(payload))
+
+        # Update isAdmin value
+        payload = {'isAdmin': is_admin}
+        with self.patch_fetch_mock(client) as m:
+            self.setup_fetch_mock(m, 200)
+            response = yield db.update_user(username, is_admin=is_admin)
+            self.assertIsNone(response)
+
+            self.assert_mock_args(m, '/db/%s/users/%s' % (db_name, username),
+                                  method='POST', body=json.dumps(payload))
+
+        # Update permissions
+        payload = {'readFrom': read_from, 'writeTo': write_to}
+        with self.patch_fetch_mock(client) as m:
+            self.setup_fetch_mock(m, 200)
+            response = yield db.update_user(username, read_from=read_from,
+                                            write_to=write_to)
+            self.assertIsNone(response)
+
+            self.assert_mock_args(m, '/db/%s/users/%s' % (db_name, username),
+                                  method='POST', body=json.dumps(payload))
+
+        # Invalid permission argument values
+        exc_msg = 'You have to provide read and write permissions'
+        with self.assertRaisesRegexp(ValueError, exc_msg):
+            yield db.update_user(username, password, is_admin=is_admin,
+                                 read_from=read_from)
+
+        # Without any arguments
+        exc_msg = 'You have to set at least one argument'
+        with self.assertRaisesRegexp(ValueError, exc_msg):
+            yield db.update_user(username)
+
+    @gen_test
     def test_change_user_password(self):
         client = AsyncfluxClient()
         db_name = 'foo'
@@ -204,6 +257,103 @@ class DatabaseTestCase(AsyncfluxTestCase):
 
             self.assert_mock_args(m, '/db/%s/users/%s' % (db_name, username),
                                   method='POST', body=json.dumps(payload))
+
+    @gen_test
+    def test_change_user_privileges(self):
+        client = AsyncfluxClient()
+        db_name = 'foo'
+        db = client[db_name]
+        username = 'foo'
+        is_admin = True
+        read_from = '^$'
+        write_to = '^$'
+
+        # Update permissions
+        payload = {'isAdmin': is_admin, 'readFrom': read_from,
+                   'writeTo': write_to}
+        with self.patch_fetch_mock(client) as m:
+            self.setup_fetch_mock(m, 200)
+            response = yield db.change_user_privileges(username, is_admin,
+                                                       read_from=read_from,
+                                                       write_to=write_to)
+            self.assertIsNone(response)
+
+            self.assert_mock_args(m, '/db/%s/users/%s' % (db_name, username),
+                                  method='POST', body=json.dumps(payload))
+
+        payload = {'isAdmin': is_admin}
+        with self.patch_fetch_mock(client) as m:
+            self.setup_fetch_mock(m, 200)
+            yield db.change_user_privileges(username, is_admin, None, None)
+            self.assertIsNone(response)
+
+            self.assert_mock_args(m, '/db/%s/users/%s' % (db_name, username),
+                                  method='POST', body=json.dumps(payload))
+
+        # Non-existing user
+        payload = {'isAdmin': is_admin, 'readFrom': read_from,
+                   'writeTo': write_to}
+        response_body = "Invalid username %s" % username
+        with self.patch_fetch_mock(client) as m:
+            self.setup_fetch_mock(m, 400, body=response_body)
+            with self.assertRaisesRegexp(AsyncfluxError, response_body):
+                yield db.change_user_privileges(username, is_admin,
+                                                read_from=read_from,
+                                                write_to=write_to)
+
+            self.assert_mock_args(m, '/db/%s/users/%s' % (db_name, username),
+                                  method='POST', body=json.dumps(payload))
+
+        # Invalid permission argument values
+        exc_msg = 'You have to provide read and write permissions'
+        with self.assertRaisesRegexp(ValueError, exc_msg):
+            yield db.change_user_privileges(username, is_admin, read_from, None)
+
+        with self.assertRaisesRegexp(ValueError, exc_msg):
+            yield db.change_user_privileges(username, is_admin, None, write_to)
+
+    @gen_test
+    def test_change_user_permissions(self):
+        client = AsyncfluxClient()
+        db_name = 'foo'
+        db = client[db_name]
+        username = 'foo'
+        read_from = '^$'
+        write_to = '^$'
+
+        # Update permissions
+        payload = {'readFrom': read_from, 'writeTo': write_to}
+        with self.patch_fetch_mock(client) as m:
+            self.setup_fetch_mock(m, 200)
+            response = yield db.change_user_permissions(username,
+                                                        read_from=read_from,
+                                                        write_to=write_to)
+            self.assertIsNone(response)
+
+            self.assert_mock_args(m, '/db/%s/users/%s' % (db_name, username),
+                                  method='POST', body=json.dumps(payload))
+
+        # Non-existing user
+        response_body = "Invalid username %s" % username
+        with self.patch_fetch_mock(client) as m:
+            self.setup_fetch_mock(m, 400, body=response_body)
+            with self.assertRaisesRegexp(AsyncfluxError, response_body):
+                yield db.change_user_permissions(username, read_from=read_from,
+                                                 write_to=write_to)
+
+            self.assert_mock_args(m, '/db/%s/users/%s' % (db_name, username),
+                                  method='POST', body=json.dumps(payload))
+
+        # Invalid permission argument values
+        exc_msg = 'You have to provide read and write permissions'
+        with self.assertRaisesRegexp(ValueError, exc_msg):
+            yield db.change_user_permissions(username, None, None)
+
+        with self.assertRaisesRegexp(ValueError, exc_msg):
+            yield db.change_user_permissions(username, read_from, None)
+
+        with self.assertRaisesRegexp(ValueError, exc_msg):
+            yield db.change_user_permissions(username, None, write_to)
 
     @gen_test
     def test_delete_user(self):

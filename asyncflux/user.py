@@ -39,8 +39,26 @@ class User(object):
         return self.__read_from
 
     @asyncflux_coroutine
+    def update(self, new_password=None, is_admin=None, read_from=None,
+               write_to=None):
+        yield self.database.update_user(self.name, new_password=new_password,
+                                        is_admin=is_admin, read_from=read_from,
+                                        write_to=write_to)
+
+    @asyncflux_coroutine
     def change_password(self, new_password):
         yield self.database.change_user_password(self.name, new_password)
+
+    @asyncflux_coroutine
+    def change_privileges(self, is_admin, read_from=None, write_to=None):
+        yield self.database.change_user_privileges(self.name, is_admin,
+                                                   read_from=read_from,
+                                                   write_to=write_to)
+
+    @asyncflux_coroutine
+    def change_permissions(self, read_from, write_to):
+        yield self.database.change_user_permissions(self.name, read_from,
+                                                    write_to)
 
     @asyncflux_coroutine
     def delete(self):
