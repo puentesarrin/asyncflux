@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 """Connection to InfluxDB"""
 import json
+import sys
 try:
     from urlparse import urlparse
 except ImportError:
