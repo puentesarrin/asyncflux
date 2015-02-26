@@ -13,9 +13,9 @@ else:
 
 from tornado import gen, httpclient, httputil, ioloop
 
-from asyncflux import clusteradmin, database
+from asyncflux import clusteradmin, database, shardspace
 from asyncflux.errors import AsyncfluxError
-from asyncflux.util import asyncflux_coroutine
+from asyncflux.util import asyncflux_coroutine, snake_case_dict
 
 
 class AsyncfluxClient(object):
@@ -187,6 +187,14 @@ class AsyncfluxClient(object):
         except AsyncfluxError:
             raise gen.Return(False)
         raise gen.Return(True)
+
+    @asyncflux_coroutine
+    def get_shard_spaces(self):
+        spaces = yield self.request('/cluster/shard_spaces')
+        shard_spaces = [
+            shardspace.ShardSpace(self, **snake_case_dict(s)) for s in spaces
+        ]
+        raise gen.Return(shard_spaces)
 
     def __repr__(self):
         return "AsyncfluxClient(%r, %r)" % (self.host, self.port)
