@@ -50,7 +50,7 @@ def main():
 
     if has_pep8:
         guide_main = pep8.StyleGuide(
-            ignore=[],
+            ignore=['E402'],
             paths=['asyncflux/'],
             exclude=[],
             max_line_length=80,
