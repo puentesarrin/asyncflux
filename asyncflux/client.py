@@ -113,8 +113,7 @@ class AsyncfluxClient(object):
 
     @asyncflux_coroutine
     def ping(self):
-        status = yield self.request('/ping')
-        raise gen.Return(status)
+        yield self.request('/ping')
 
     @asyncflux_coroutine
     def get_databases(self):
