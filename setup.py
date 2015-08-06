@@ -50,7 +50,7 @@ class DocCommand(Command):
 
 setup(
     name='asyncflux',
-    version='0.0+',
+    version='0.1+',
     url='https://github.com/puentesarrin/asyncflux',
     description='Asynchronous client for InfluxDB and Tornado.',
     long_description=readme_content,
