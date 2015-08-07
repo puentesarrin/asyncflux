@@ -44,7 +44,7 @@ class Database(object):
             query_list.append('FROM "{}"'.format(measurement))
         if tags:
             tags_str = ' and '.join(["{}='{}'".format(k, v)
-                                     for k, v in tags.iteriems()])
+                                     for k, v in tags.iteritems()])
             query_list.append('WHERE {}'.format(tags_str))
         yield self.query(' '.join(query_list))
 
