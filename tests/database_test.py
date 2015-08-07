@@ -64,6 +64,21 @@ class DatabaseTestCase(AsyncfluxTestCase):
                                   qs={'db': db_name})
 
     @gen_test
+    def test_drop_series_using_tags(self):
+        client = AsyncfluxClient()
+        response_body = {'results': [{}]}
+        db_name = 'foo'
+        query = "DROP SERIES FROM \"cpu_load\" WHERE region='us-east-a1'"
+
+        with self.patch_fetch_mock(client) as m:
+            self.setup_fetch_mock(m, 200, body=response_body)
+            yield client.foo.drop_series('cpu_load',
+                                         tags={'region': 'us-east-a1'})
+
+            self.assert_mock_args(m, '/query', query=query,
+                                  qs={'db': db_name})
+
+    @gen_test
     def test_drop_series_non_existing_measurement(self):
         client = AsyncfluxClient()
         response_body = {
