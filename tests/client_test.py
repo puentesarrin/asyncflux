@@ -1,11 +1,10 @@
 # -*- coding: utf-8 -*-
-import json
+from influxdb.exceptions import InfluxDBClientError
 
 from asyncflux import AsyncfluxClient
-from asyncflux.clusteradmin import ClusterAdmin
 from asyncflux.database import Database
 from asyncflux.testing import AsyncfluxTestCase, gen_test
-from asyncflux.errors import AsyncfluxError
+from asyncflux.user import User
 
 
 class AsyncfluxClientTestCase(AsyncfluxTestCase):
@@ -129,312 +128,496 @@ class AsyncfluxClientTestCase(AsyncfluxTestCase):
     @gen_test
     def test_ping(self):
         client = AsyncfluxClient()
-        response_body = {'status': 'ok'}
 
         with self.patch_fetch_mock(client) as m:
-            self.setup_fetch_mock(m, 200, body=response_body)
+            self.setup_fetch_mock(m, 204)
             response = yield client.ping()
-            self.assertEqual(response, response_body)
+            self.assertEqual(response, None)
 
             self.assert_mock_args(m, '/ping')
 
     @gen_test
-    def test_get_database_names(self):
-        client = AsyncfluxClient()
-        databases = [{'name': 'foo'}, {'name': 'bar'}]
-        db_names = [db['name'] for db in databases]
-
-        with self.patch_fetch_mock(client) as m:
-            self.setup_fetch_mock(m, 200, body=databases)
-            response = yield client.get_database_names()
-            self.assertEqual(response, db_names)
-
-            self.assert_mock_args(m, '/db')
-
-    @gen_test
     def test_get_databases(self):
         client = AsyncfluxClient()
-        databases = [{'name': 'foo'}, {'name': 'bar'}]
-        db_names = [db['name'] for db in databases]
+        response_body = {
+            'results': [
+                {
+                    'series': [
+                        {
+                            'name': 'databases',
+                            'columns': ['name'],
+                            'values': [['foo'], ['bar']]
+                        }
+                    ]
+                }
+            ]
+        }
+        db_names = ['foo', 'bar']
 
         with self.patch_fetch_mock(client) as m:
-            self.setup_fetch_mock(m, 200, body=databases)
+            self.setup_fetch_mock(m, 200, body=response_body)
             response = yield client.get_databases()
-            self.assertEqual(len(response), len(databases))
-            for r in response:
-                self.assertIsInstance(r, Database)
-                self.assertIn(r.name, db_names)
 
-            self.assert_mock_args(m, '/db')
+            self.assertEqual(len(response), len(db_names))
+            for db, db_name in zip(response, db_names):
+                self.assertIsInstance(db, Database)
+                self.assertEqual(db.name, db_name)
+
+            self.assert_mock_args(m, '/query', query='SHOW DATABASES')
+
+    @gen_test
+    def test_get_database_names(self):
+        client = AsyncfluxClient()
+        response_body = {
+            'results': [
+                {
+                    'series': [
+                        {
+                            'name': 'databases',
+                            'columns': ['name'],
+                            'values': [['foo'], ['bar']]
+                        }
+                    ]
+                }
+            ]
+        }
+
+        with self.patch_fetch_mock(client) as m:
+            self.setup_fetch_mock(m, 200, body=response_body)
+            response = yield client.get_database_names()
+
+            self.assertEqual(response, ['foo', 'bar'])
+
+            self.assert_mock_args(m, '/query', query='SHOW DATABASES')
 
     def test_create_database_cps(self):
         client = AsyncfluxClient()
+        response_body = {'results': [{}]}
         db_name = 'foo'
 
-        # Using a string
         with self.patch_fetch_mock(client) as m:
-            self.setup_fetch_mock(m, 201)
+            self.setup_fetch_mock(m, 200, body=response_body)
             client.create_database(db_name, callback=self.stop_op)
             response = self.wait()
+
             self.assertIsInstance(response, Database)
             self.assertEqual(response.name, db_name)
 
-            self.assert_mock_args(m, '/db', method='POST',
-                                  body=json.dumps({'name': db_name}))
-
-        # Existing database
-        response_body = 'database %s exists' % db_name
-        with self.patch_fetch_mock(client) as m:
-            self.setup_fetch_mock(m, 409, body=response_body)
-            with self.assertRaisesRegexp(AsyncfluxError, response_body):
-                client.create_database(db_name, callback=self.stop_op)
-                response = self.wait()
-                self.assertEqual(response, response_body)
-
-            self.assert_mock_args(m, '/db', method='POST',
-                                  body=json.dumps({'name': db_name}))
+            self.assert_mock_args(m, '/query', query='CREATE DATABASE foo')
 
     @gen_test
-    def test_create_database(self):
+    def test_create_database_using_string(self):
         client = AsyncfluxClient()
         db_name = 'foo'
+        response_body = {'results': [{}]}
 
-        # Using a string
         with self.patch_fetch_mock(client) as m:
-            self.setup_fetch_mock(m, 201)
+            self.setup_fetch_mock(m, 200, body=response_body)
             response = yield client.create_database(db_name)
+
             self.assertIsInstance(response, Database)
             self.assertEqual(response.name, db_name)
 
-            self.assert_mock_args(m, '/db', method='POST',
-                                  body=json.dumps({'name': db_name}))
+            self.assert_mock_args(m, '/query', query='CREATE DATABASE foo')
 
-        # Using an instance of Database
+    @gen_test
+    def test_create_database_using_class(self):
+        client = AsyncfluxClient()
+        db_name = 'foo'
+        response_body = {'results': [{}]}
+
         db = Database(client, db_name)
         with self.patch_fetch_mock(client) as m:
-            self.setup_fetch_mock(m, 201)
+            self.setup_fetch_mock(m, 200, body=response_body)
             response = yield client.create_database(db)
+
             self.assertIsInstance(response, Database)
             self.assertEqual(response.name, db_name)
 
-            self.assert_mock_args(m, '/db', method='POST',
-                                  body=json.dumps({'name': db_name}))
+            self.assert_mock_args(m, '/query', query='CREATE DATABASE foo')
 
-        # Using an unsupported type
+    @gen_test
+    def test_create_database_unsupported_type(self):
+        client = AsyncfluxClient()
+
         with self.patch_fetch_mock(client) as m:
             re_exc_msg = r'^name_or_database must be an instance'
             with self.assertRaisesRegexp(TypeError, re_exc_msg):
                 yield client.create_database(None)
+
             self.assertFalse(m.called)
 
-        # Existing database
-        response_body = 'database %s exists' % db_name
-        with self.patch_fetch_mock(client) as m:
-            self.setup_fetch_mock(m, 409, body=response_body)
-            with self.assertRaisesRegexp(AsyncfluxError, response_body):
-                response = yield client.create_database(db_name)
-                self.assertEqual(response, response_body)
-
-            self.assert_mock_args(m, '/db', method='POST',
-                                  body=json.dumps({'name': db_name}))
-
     @gen_test
-    def test_delete_database(self):
+    def test_create_database_existing_one(self):
         client = AsyncfluxClient()
         db_name = 'foo'
+        response_body = {'results': [{'error': 'database already exists'}]}
 
-        # Using a string
         with self.patch_fetch_mock(client) as m:
-            self.setup_fetch_mock(m, 204)
-            response = yield client.delete_database(db_name)
+            self.setup_fetch_mock(m, 200, body=response_body)
+            with self.assertRaises(InfluxDBClientError) as cm:
+                yield client.create_database(db_name)
+
+            self.assertEqual(str(cm.exception), 'database already exists')
+            self.assert_mock_args(m, '/query', query='CREATE DATABASE foo')
+
+    @gen_test
+    def test_drop_database_using_string(self):
+        client = AsyncfluxClient()
+        db_name = 'foo'
+        response_body = {'results': [{}]}
+
+        with self.patch_fetch_mock(client) as m:
+            self.setup_fetch_mock(m, 200, body=response_body)
+            response = yield client.drop_database(db_name)
+
             self.assertIsNone(response)
 
-            self.assert_mock_args(m, '/db/%s' % db_name, method='DELETE')
+            self.assert_mock_args(m, '/query', query='DROP DATABASE foo')
 
-        # Using an instance of Database
+    @gen_test
+    def test_drop_database_using_class(self):
+        client = AsyncfluxClient()
+        db_name = 'foo'
         db = Database(client, db_name)
+        response_body = {'results': [{}]}
+
         with self.patch_fetch_mock(client) as m:
-            self.setup_fetch_mock(m, 204)
-            response = yield client.delete_database(db)
+            self.setup_fetch_mock(m, 200, body=response_body)
+            response = yield client.drop_database(db)
+
             self.assertIsNone(response)
 
-            self.assert_mock_args(m, '/db/%s' % db_name, method='DELETE')
+            self.assert_mock_args(m, '/query', query='DROP DATABASE foo')
 
-        # Using an unsupported type
+    @gen_test
+    def test_drop_database_unsupported_type(self):
+        client = AsyncfluxClient()
+
         with self.patch_fetch_mock(client) as m:
             re_exc_msg = r'^name_or_database must be an instance'
             with self.assertRaisesRegexp(TypeError, re_exc_msg):
-                yield client.delete_database(None)
+                yield client.drop_database(None)
+
             self.assertFalse(m.called)
 
-        # Non-existing database
-        response_body = "Database %s doesn't exist" % db_name
-        with self.patch_fetch_mock(client) as m:
-            self.setup_fetch_mock(m, 400, body=response_body)
-            with self.assertRaisesRegexp(AsyncfluxError, response_body):
-                yield client.delete_database(db_name)
-
-            self.assert_mock_args(m, '/db/%s' % db_name, method='DELETE')
-
     @gen_test
-    def test_get_cluster_admin_names(self):
+    def test_drop_database_non_existing_one(self):
         client = AsyncfluxClient()
-        admins = [{'name': 'foo'}, {'name': 'bar'}]
-        admin_names = [a['name'] for a in admins]
+        db_name = 'foo'
+        response_body = {
+            'results': [{'error': 'database not found: foo'}]
+        }
 
         with self.patch_fetch_mock(client) as m:
-            self.setup_fetch_mock(m, 200, body=admins)
-            response = yield client.get_cluster_admin_names()
-            self.assertListEqual(response, admin_names)
+            self.setup_fetch_mock(m, 200, body=response_body)
+            with self.assertRaises(InfluxDBClientError) as cm:
+                yield client.drop_database(db_name)
 
-            self.assert_mock_args(m, '/cluster_admins')
+            self.assertEqual(str(cm.exception), 'database not found: foo')
+            self.assert_mock_args(m, '/query', query='DROP DATABASE foo')
 
     @gen_test
-    def test_get_cluster_admins(self):
+    def test_get_users(self):
         client = AsyncfluxClient()
-        admins = [{'name': 'foo'}, {'name': 'bar'}]
-        admin_names = [a['name'] for a in admins]
+        response_body = {
+            'results': [
+                {
+                    'series': [
+                        {
+                            'columns': ['user', 'admin'],
+                            'values': [
+                                ['foo', True],
+                                ['bar', False]
+                            ]
+                        }
+                    ]
+                }
+            ]
+        }
+        users_data = [
+            {'user': 'foo', 'admin': True},
+            {'user': 'bar', 'admin': False}
+        ]
 
         with self.patch_fetch_mock(client) as m:
-            self.setup_fetch_mock(m, 200, body=admins)
-            response = yield client.get_cluster_admins()
-            self.assertEqual(len(response), len(admin_names))
-            for r in response:
-                self.assertIsInstance(r, ClusterAdmin)
-                self.assertIn(r.name, admin_names)
+            self.setup_fetch_mock(m, 200, body=response_body)
+            response = yield client.get_users()
 
-            self.assert_mock_args(m, '/cluster_admins')
+            self.assertEqual(len(response), len(users_data))
+            for user, user_info in zip(response, users_data):
+                self.assertIsInstance(user, User)
+                self.assertEqual(user.name, user_info['user'])
+                self.assertEqual(user.admin, user_info['admin'])
+
+            self.assert_mock_args(m, '/query', query='SHOW USERS')
 
     @gen_test
-    def test_create_cluster_admin(self):
+    def test_get_user_names(self):
         client = AsyncfluxClient()
+        response_body = {
+            'results': [
+                {
+                    'series': [
+                        {
+                            'columns': ['user', 'admin'],
+                            'values': [
+                                ['foo', True],
+                                ['bar', False]
+                            ]
+                        }
+                    ]
+                }
+            ]
+        }
+
+        with self.patch_fetch_mock(client) as m:
+            self.setup_fetch_mock(m, 200, body=response_body)
+            response = yield client.get_user_names()
+
+            self.assertEqual(response, ['foo', 'bar'])
+
+            self.assert_mock_args(m, '/query', query='SHOW USERS')
+
+    @gen_test
+    def test_create_user(self):
+        client = AsyncfluxClient()
+        response_body = {'results': [{}]}
         username = 'foo'
-        password = 'fubar'
+        password = 'bar'
+        query = "CREATE USER foo WITH PASSWORD 'bar'"
 
         with self.patch_fetch_mock(client) as m:
-            self.setup_fetch_mock(m, 200)
-            response = yield client.create_cluster_admin(username, password)
-            self.assertIsInstance(response, ClusterAdmin)
+            self.setup_fetch_mock(m, 200, body=response_body)
+            response = yield client.create_user(username, password)
+
+            self.assertIsInstance(response, User)
             self.assertEqual(response.name, username)
+            self.assertEqual(response.admin, False)
 
-            self.assert_mock_args(m, '/cluster_admins', method='POST',
-                                  body=json.dumps({'name': username,
-                                                   'password': password}))
-
-        # Existing cluster admin
-        response_body = 'User %s already exists' % username
-        with self.patch_fetch_mock(client) as m:
-            self.setup_fetch_mock(m, 400, body=response_body)
-            with self.assertRaisesRegexp(AsyncfluxError, response_body):
-                yield client.create_cluster_admin(username, password)
-
-            self.assert_mock_args(m, '/cluster_admins', method='POST',
-                                  body=json.dumps({'name': username,
-                                                   'password': password}))
-
-        # Invalid password
-        password = 'bar'
-        response_body = ('Password must be more than 4 and less than 56 '
-                         'characters')
-        with self.patch_fetch_mock(client) as m:
-            self.setup_fetch_mock(m, 400, body=response_body)
-            with self.assertRaisesRegexp(AsyncfluxError, response_body):
-                yield client.create_cluster_admin(username, password)
-
-            self.assert_mock_args(m, '/cluster_admins', method='POST',
-                                  body=json.dumps({'name': username,
-                                                   'password': password}))
+            self.assert_mock_args(m, '/query', query=query)
 
     @gen_test
-    def test_change_cluster_admin_password(self):
+    def test_create_user_admin(self):
         client = AsyncfluxClient()
-        username = 'foo'
-        password = 'fubar'
-
-        with self.patch_fetch_mock(client) as m:
-            self.setup_fetch_mock(m, 200)
-            response = yield client.change_cluster_admin_password(username,
-                                                                  password)
-            self.assertIsNone(response)
-
-            self.assert_mock_args(m, '/cluster_admins/%s' % username,
-                                  method='POST',
-                                  body=json.dumps({'password': password}))
-
-        # Non-existing cluster admin
-        response_body = 'Invalid user name %s' % username
-        with self.patch_fetch_mock(client) as m:
-            self.setup_fetch_mock(m, 400, body=response_body)
-            with self.assertRaisesRegexp(AsyncfluxError, response_body):
-                yield client.change_cluster_admin_password(username, password)
-
-            self.assert_mock_args(m, '/cluster_admins/%s' % username,
-                                  method='POST',
-                                  body=json.dumps({'password': password}))
-
-        # Invalid password
-        password = 'bar'
-        response_body = ('Password must be more than 4 and less than 56 '
-                         'characters')
-        with self.patch_fetch_mock(client) as m:
-            self.setup_fetch_mock(m, 400, body=response_body)
-            with self.assertRaisesRegexp(AsyncfluxError, response_body):
-                yield client.change_cluster_admin_password(username, password)
-
-            self.assert_mock_args(m, '/cluster_admins/%s' % username,
-                                  method='POST',
-                                  body=json.dumps({'password': password}))
-
-    @gen_test
-    def test_delete_cluster_admin(self):
-        client = AsyncfluxClient()
-        username = 'foo'
-
-        with self.patch_fetch_mock(client) as m:
-            self.setup_fetch_mock(m, 200)
-            response = yield client.delete_cluster_admin(username)
-            self.assertIsNone(response)
-
-            self.assert_mock_args(m, '/cluster_admins/%s' % username,
-                                  method='DELETE')
-
-        # Non-existing cluster admin
-        response_body = "User %s doesn't exists" % username
-        with self.patch_fetch_mock(client) as m:
-            self.setup_fetch_mock(m, 400, body=response_body)
-            with self.assertRaisesRegexp(AsyncfluxError, response_body):
-                yield client.delete_cluster_admin(username)
-
-            self.assert_mock_args(m, '/cluster_admins/%s' % username,
-                                  method='DELETE')
-
-    @gen_test
-    def test_authenticate_cluster_admin(self):
-        client = AsyncfluxClient()
+        response_body = {'results': [{}]}
         username = 'foo'
         password = 'bar'
+        query = "CREATE USER foo WITH PASSWORD 'bar' WITH ALL PRIVILEGES"
 
         with self.patch_fetch_mock(client) as m:
-            self.setup_fetch_mock(m, 200)
-            response = yield client.authenticate_cluster_admin(username,
-                                                               password)
-            self.assertTrue(response)
+            self.setup_fetch_mock(m, 200, body=response_body)
+            response = yield client.create_user(username, password, True)
 
-            self.assert_mock_args(m, '/cluster_admins/authenticate',
-                                  auth_username=username,
-                                  auth_password=password)
+            self.assertIsInstance(response, User)
+            self.assertEqual(response.name, username)
+            self.assertEqual(response.admin, True)
 
-        # Invalid credentials
-        response_body = 'Invalid username/password'
+            self.assert_mock_args(m, '/query', query=query)
+
+    @gen_test
+    def test_create_user_existing_one(self):
+        client = AsyncfluxClient()
+        response_body = {'results': [{'error': 'user already exists'}]}
+        username = 'foo'
+        password = 'bar'
+        query = "CREATE USER foo WITH PASSWORD 'bar'"
+
         with self.patch_fetch_mock(client) as m:
-            self.setup_fetch_mock(m, 401, body=response_body)
-            response = yield client.authenticate_cluster_admin(username,
-                                                               password)
-            self.assertFalse(response)
+            self.setup_fetch_mock(m, 200, body=response_body)
+            with self.assertRaises(InfluxDBClientError) as cm:
+                yield client.create_user(username, password)
 
-            self.assert_mock_args(m, '/cluster_admins/authenticate',
-                                  auth_username=username,
-                                  auth_password=password)
+            self.assertEqual(str(cm.exception), 'user already exists')
+            self.assert_mock_args(m, '/query', query=query)
+
+    @gen_test
+    def test_create_user_admin_existing_one(self):
+        client = AsyncfluxClient()
+        response_body = {'results': [{'error': 'user already exists'}]}
+        username = 'foo'
+        password = 'bar'
+        query = "CREATE USER foo WITH PASSWORD 'bar' WITH ALL PRIVILEGES"
+
+        with self.patch_fetch_mock(client) as m:
+            self.setup_fetch_mock(m, 200, body=response_body)
+            with self.assertRaises(InfluxDBClientError) as cm:
+                yield client.create_user(username, password, True)
+
+            self.assertEqual(str(cm.exception), 'user already exists')
+            self.assert_mock_args(m, '/query', query=query)
+
+    @gen_test
+    def test_change_user_password(self):
+        client = AsyncfluxClient()
+        response_body = {'results': [{}]}
+        username = 'foo'
+        password = 'bar'
+        query = "SET PASSWORD FOR foo = 'bar'"
+
+        with self.patch_fetch_mock(client) as m:
+            self.setup_fetch_mock(m, 200, body=response_body)
+            yield client.change_user_password(username, password)
+
+            self.assert_mock_args(m, '/query', query=query)
+
+    @gen_test
+    def test_change_user_password_non_existing(self):
+        client = AsyncfluxClient()
+        response_body = {'results': [{'error': 'user not found'}]}
+        username = 'foo'
+        password = 'bar'
+        query = "SET PASSWORD FOR foo = 'bar'"
+
+        with self.patch_fetch_mock(client) as m:
+            self.setup_fetch_mock(m, 200, body=response_body)
+            with self.assertRaises(InfluxDBClientError) as cm:
+                yield client.change_user_password(username, password)
+
+            self.assertEqual(str(cm.exception), 'user not found')
+            self.assert_mock_args(m, '/query', query=query)
+
+    @gen_test
+    def test_drop_user(self):
+        client = AsyncfluxClient()
+        response_body = {'results': [{}]}
+        username = 'foo'
+
+        with self.patch_fetch_mock(client) as m:
+            self.setup_fetch_mock(m, 200, body=response_body)
+            yield client.drop_user(username)
+
+            self.assert_mock_args(m, '/query', query='DROP USER foo')
+
+    @gen_test
+    def test_drop_user_non_existing(self):
+        client = AsyncfluxClient()
+        response_body = {'results': [{'error': 'user not found'}]}
+        username = 'foo'
+
+        with self.patch_fetch_mock(client) as m:
+            self.setup_fetch_mock(m, 200, body=response_body)
+            with self.assertRaises(InfluxDBClientError) as cm:
+                yield client.drop_user(username)
+
+            self.assertEqual(str(cm.exception), 'user not found')
+            self.assert_mock_args(m, '/query', query='DROP USER foo')
+
+    @gen_test
+    def test_grant_privilege(self):
+        client = AsyncfluxClient()
+        response_body = {'results': [{}]}
+        username = 'foo'
+        db_name = 'bar'
+        query = 'GRANT ALL ON bar TO foo'
+
+        with self.patch_fetch_mock(client) as m:
+            self.setup_fetch_mock(m, 200, body=response_body)
+            yield client.grant_privilege('ALL', username, db_name)
+
+            self.assert_mock_args(m, '/query', query=query)
+
+    @gen_test
+    def test_revoke_privilege(self):
+        client = AsyncfluxClient()
+        response_body = {'results': [{}]}
+        username = 'foo'
+        db_name = 'bar'
+        query = 'REVOKE ALL ON bar FROM foo'
+
+        with self.patch_fetch_mock(client) as m:
+            self.setup_fetch_mock(m, 200, body=response_body)
+            yield client.revoke_privilege('ALL', username, db_name)
+
+            self.assert_mock_args(m, '/query', query=query)
+
+    @gen_test
+    def test_grant_privilege_to_non_existing_user(self):
+        client = AsyncfluxClient()
+        response_body = {'results': [{'error': 'user not found'}]}
+        username = 'foo'
+        db_name = 'bar'
+        query = 'GRANT ALL ON bar TO foo'
+
+        with self.patch_fetch_mock(client) as m:
+            self.setup_fetch_mock(m, 200, body=response_body)
+            with self.assertRaises(InfluxDBClientError) as cm:
+                yield client.grant_privilege('ALL', username, db_name)
+
+            self.assertEqual(str(cm.exception), 'user not found')
+            self.assert_mock_args(m, '/query', query=query)
+
+    @gen_test
+    def test_revoke_privilege_from_non_existing_user(self):
+        client = AsyncfluxClient()
+        response_body = {'results': [{'error': 'user not found'}]}
+        username = 'foo'
+        db_name = 'bar'
+        query = 'REVOKE ALL ON bar FROM foo'
+
+        with self.patch_fetch_mock(client) as m:
+            self.setup_fetch_mock(m, 200, body=response_body)
+            with self.assertRaises(InfluxDBClientError) as cm:
+                yield client.revoke_privilege('ALL', username, db_name)
+
+            self.assertEqual(str(cm.exception), 'user not found')
+            self.assert_mock_args(m, '/query', query=query)
+
+    @gen_test
+    def test_grant_admin_privileges(self):
+        client = AsyncfluxClient()
+        response_body = {'results': [{}]}
+        username = 'foo'
+        query = 'GRANT ALL PRIVILEGES TO foo'
+
+        with self.patch_fetch_mock(client) as m:
+            self.setup_fetch_mock(m, 200, body=response_body)
+            yield client.grant_admin_privileges(username)
+
+            self.assert_mock_args(m, '/query', query=query)
+
+    @gen_test
+    def test_revoke_admin_privileges(self):
+        client = AsyncfluxClient()
+        response_body = {'results': [{}]}
+        username = 'foo'
+        query = 'REVOKE ALL PRIVILEGES FROM foo'
+
+        with self.patch_fetch_mock(client) as m:
+            self.setup_fetch_mock(m, 200, body=response_body)
+            yield client.revoke_admin_privileges(username)
+
+            self.assert_mock_args(m, '/query', query=query)
+
+    @gen_test
+    def test_grant_admin_privileges_to_non_existing_user(self):
+        client = AsyncfluxClient()
+        response_body = {'results': [{'error': 'user not found'}]}
+        username = 'foo'
+        query = 'GRANT ALL PRIVILEGES TO foo'
+
+        with self.patch_fetch_mock(client) as m:
+            self.setup_fetch_mock(m, 200, body=response_body)
+            with self.assertRaises(InfluxDBClientError) as cm:
+                yield client.grant_admin_privileges(username)
+
+            self.assertEqual(str(cm.exception), 'user not found')
+            self.assert_mock_args(m, '/query', query=query)
+
+    @gen_test
+    def test_revoke_admin_privileges_from_non_existing_user(self):
+        client = AsyncfluxClient()
+        response_body = {'results': [{'error': 'user not found'}]}
+        username = 'foo'
+        query = 'REVOKE ALL PRIVILEGES FROM foo'
+
+        with self.patch_fetch_mock(client) as m:
+            self.setup_fetch_mock(m, 200, body=response_body)
+            with self.assertRaises(InfluxDBClientError) as cm:
+                yield client.revoke_admin_privileges(username)
+
+            self.assertEqual(str(cm.exception), 'user not found')
+            self.assert_mock_args(m, '/query', query=query)
 
     def test_repr(self):
         host = 'localhost'

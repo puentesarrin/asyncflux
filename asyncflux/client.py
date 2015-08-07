@@ -12,10 +12,11 @@ else:
     basestring = basestring  # pragma: no cover
 
 from tornado import gen, httpclient, httputil, ioloop
+from influxdb.resultset import ResultSet
 
-from asyncflux import clusteradmin, database, shardspace
+from asyncflux import database, user
 from asyncflux.errors import AsyncfluxError
-from asyncflux.util import asyncflux_coroutine, snake_case_dict
+from asyncflux.util import asyncflux_coroutine
 
 
 class AsyncfluxClient(object):
@@ -116,15 +117,42 @@ class AsyncfluxClient(object):
         yield self.request('/ping')
 
     @asyncflux_coroutine
+    def query(self, query, params=None, epoch=None, database=None,
+              raise_errors=True):
+        params = params or {}
+        params['q'] = query
+        if database:
+            params['db'] = database
+        if epoch:
+            params['epoch'] = epoch
+
+        response = yield self.request('/query', qs=params)
+        result_set = [
+            ResultSet(result, raise_errors=raise_errors)
+            for result
+            in response.get('results', [])
+        ]
+        raise gen.Return(result_set)
+
+    @asyncflux_coroutine
     def get_databases(self):
-        dbs = yield self.request('/db')
-        databases = [database.Database(self, db['name']) for db in dbs]
+        result_set = yield self.query('SHOW DATABASES')
+        databases = [
+            database.Database(self, raw['name'])
+            for raw
+            in result_set[0].get_points()
+        ]
         raise gen.Return(databases)
 
     @asyncflux_coroutine
     def get_database_names(self):
-        databases = yield self.request('/db')
-        raise gen.Return([db['name'] for db in databases])
+        result_set = yield self.query('SHOW DATABASES')
+        databases = [
+            raw['name']
+            for raw
+            in result_set[0].get_points()
+        ]
+        raise gen.Return(databases)
 
     @asyncflux_coroutine
     def create_database(self, name_or_database):
@@ -134,66 +162,83 @@ class AsyncfluxClient(object):
         if not isinstance(name, basestring):
             raise TypeError("name_or_database must be an instance of "
                             "%s or Database" % (basestring.__name__,))
-        yield self.request('/db', body={'name': name}, method='POST')
+        yield self.query('CREATE DATABASE {}'.format(name))
         new_database = database.Database(self, name)
         raise gen.Return(new_database)
 
     @asyncflux_coroutine
-    def delete_database(self, name_or_database):
+    def drop_database(self, name_or_database):
         name = name_or_database
         if isinstance(name, database.Database):
             name = name_or_database.name
         if not isinstance(name, basestring):
             raise TypeError("name_or_database must be an instance of "
                             "%s or Database" % (basestring.__name__,))
-        yield self.request('/db/%(database)s', {'database': name},
-                           method='DELETE')
+        yield self.query('DROP DATABASE {}'.format(name))
 
     @asyncflux_coroutine
-    def get_cluster_admin_names(self):
-        admins = yield self.request('/cluster_admins')
-        raise gen.Return([a['name'] for a in admins])
-
-    @asyncflux_coroutine
-    def get_cluster_admins(self):
-        cas = yield self.request('/cluster_admins')
-        admins = [clusteradmin.ClusterAdmin(self, ca['name']) for ca in cas]
-        raise gen.Return(admins)
-
-    @asyncflux_coroutine
-    def create_cluster_admin(self, username, password):
-        yield self.request('/cluster_admins', method='POST',
-                           body={'name': username, 'password': password})
-        new_cluster_admin = clusteradmin.ClusterAdmin(self, username)
-        raise gen.Return(new_cluster_admin)
-
-    @asyncflux_coroutine
-    def change_cluster_admin_password(self, username, new_password):
-        yield self.request('/cluster_admins/%(username)s',
-                           {'username': username}, method='POST',
-                           body={'password': new_password})
-
-    @asyncflux_coroutine
-    def delete_cluster_admin(self, username):
-        yield self.request('/cluster_admins/%(username)s',
-                           {'username': username}, method='DELETE')
-
-    @asyncflux_coroutine
-    def authenticate_cluster_admin(self, username, password):
-        try:
-            yield self.request('/cluster_admins/authenticate',
-                               auth_username=username, auth_password=password)
-        except AsyncfluxError:
-            raise gen.Return(False)
-        raise gen.Return(True)
-
-    @asyncflux_coroutine
-    def get_shard_spaces(self):
-        spaces = yield self.request('/cluster/shard_spaces')
-        shard_spaces = [
-            shardspace.ShardSpace(self, **snake_case_dict(s)) for s in spaces
+    def get_users(self):
+        result_set = yield self.query('SHOW USERS')
+        databases = [
+            user.User(self, point['user'], point['admin'])
+            for point
+            in result_set[0].get_points()
         ]
-        raise gen.Return(shard_spaces)
+        raise gen.Return(databases)
+
+    @asyncflux_coroutine
+    def get_user_names(self):
+        result_set = yield self.query('SHOW USERS')
+        databases = [
+            point['user']
+            for point
+            in result_set[0].get_points()
+        ]
+        raise gen.Return(databases)
+
+    @asyncflux_coroutine
+    def create_user(self, username, password, admin=False):
+        query_list = ["CREATE USER {} WITH PASSWORD '{}'".format(username,
+                                                                 password)]
+        if admin:
+            query_list.append('WITH ALL PRIVILEGES')
+        yield self.query(' '.join(query_list))
+        new_user = user.User(self, username, admin)
+        raise gen.Return(new_user)
+
+    @asyncflux_coroutine
+    def change_user_password(self, username, password):
+        query_str = "SET PASSWORD FOR {} = '{}'".format(username, password)
+        yield self.query(query_str)
+
+    @asyncflux_coroutine
+    def drop_user(self, username):
+        query_str = 'DROP USER {}'.format(username)
+        yield self.query(query_str)
+
+    @asyncflux_coroutine
+    def grant_privilege(self, privilege, username, database=None):
+        query_list = ['GRANT {}'.format(privilege)]
+        if database:
+            query_list.append('ON {}'.format(database))
+        query_list.append('TO {}'.format(username))
+        yield self.query(' '.join(query_list))
+
+    @asyncflux_coroutine
+    def revoke_privilege(self, privilege, username, database=None):
+        query_list = ['REVOKE {}'.format(privilege)]
+        if database:
+            query_list.append('ON {}'.format(database))
+        query_list.append('FROM {}'.format(username))
+        yield self.query(' '.join(query_list))
+
+    @asyncflux_coroutine
+    def grant_admin_privileges(self, username):
+        yield self.grant_privilege('ALL PRIVILEGES', username)
+
+    @asyncflux_coroutine
+    def revoke_admin_privileges(self, username):
+        yield self.revoke_privilege('ALL PRIVILEGES', username)
 
     def __repr__(self):
         return "AsyncfluxClient(%r, %r)" % (self.host, self.port)

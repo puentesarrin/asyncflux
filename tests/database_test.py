@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
-import json
+from influxdb.exceptions import InfluxDBClientError
 
 from asyncflux import AsyncfluxClient
 from asyncflux.database import Database
-from asyncflux.errors import AsyncfluxError
+from asyncflux.retentionpolicy import RetentionPolicy
 from asyncflux.testing import AsyncfluxTestCase, gen_test
 from asyncflux.user import User
 
@@ -11,431 +11,550 @@ from asyncflux.user import User
 class DatabaseTestCase(AsyncfluxTestCase):
 
     @gen_test
-    def test_delete(self):
+    def test_get_series(self):
         client = AsyncfluxClient()
+        serie_values = [
+            [
+                'cpu_load_short,host=server01,region=us-east-a1',
+                'server01',
+                'us-east-a1'
+            ],
+            [
+                'cpu_load_short,host=server02,region=us-east-a1',
+                'server02',
+                'us-east-a1'
+            ]
+        ]
+        response_body = {
+            'results': [
+                {
+                    'series': [
+                        {
+                            'name': 'cpu_load',
+                            'columns': ['_key', 'host', 'region'],
+                            'values': serie_values
+                        }
+                    ]
+                }
+            ]
+        }
         db_name = 'foo'
-        db = Database(client, db_name)
 
         with self.patch_fetch_mock(client) as m:
-            self.setup_fetch_mock(m, 204)
-            response = yield db.delete()
-            self.assertIsNone(response)
+            self.setup_fetch_mock(m, 200, body=response_body)
+            response = yield client[db_name].get_series()
 
-            self.assert_mock_args(m, '/db/%s' % db_name, method='DELETE')
-
-        # Non-existing databse
-        response_body = "Database %s doesn't exist" % db_name
-        with self.patch_fetch_mock(client) as m:
-            self.setup_fetch_mock(m, 400, body=response_body)
-            with self.assertRaisesRegexp(AsyncfluxError, response_body):
-                yield db.delete()
-
-            self.assert_mock_args(m, '/db/%s' % db_name, method='DELETE')
+            self.assertEqual(len(response[0].get('tags', [])),
+                             len(serie_values))
+            self.assert_mock_args(m, '/query', query='SHOW SERIES',
+                                  qs={'db': db_name})
 
     @gen_test
-    def test_get_user_names(self):
+    def test_drop_series(self):
         client = AsyncfluxClient()
+        response_body = {'results': [{}]}
         db_name = 'foo'
-        db = client[db_name]
-        users = [{'name': 'foo', 'isAdmin': False, 'writeTo': '.*',
-                  'readFrom': '.*'},
-                 {'name': 'bar', 'isAdmin': False, 'writeTo': '.*',
-                  'readFrom': '.*'}]
-        user_names = [u['name'] for u in users]
+        query = 'DROP SERIES FROM "cpu_load"'
 
         with self.patch_fetch_mock(client) as m:
-            self.setup_fetch_mock(m, 200, body=users)
-            response = yield db.get_user_names()
-            self.assertListEqual(response, user_names)
+            self.setup_fetch_mock(m, 200, body=response_body)
+            yield client.foo.drop_series('cpu_load')
 
-            self.assert_mock_args(m, '/db/%s/users' % db_name)
+            self.assert_mock_args(m, '/query', query=query,
+                                  qs={'db': db_name})
 
     @gen_test
-    def test_get_users(self):
+    def test_drop_series_non_existing_measurement(self):
         client = AsyncfluxClient()
+        response_body = {
+            'results': [{'error': 'measurement not found: cpu_load'}]
+        }
         db_name = 'foo'
-        db = client[db_name]
-        users = [{'name': 'foo', 'isAdmin': False, 'writeTo': '.*',
-                  'readFrom': '.*'},
-                 {'name': 'bar', 'isAdmin': False, 'writeTo': '.*',
-                  'readFrom': '.*'}]
-        user_names = [u['name'] for u in users]
+        query = 'DROP SERIES FROM "cpu_load"'
 
         with self.patch_fetch_mock(client) as m:
-            self.setup_fetch_mock(m, 200, body=users)
-            response = yield db.get_users()
-            self.assertEqual(len(response), len(user_names))
-            for r in response:
-                self.assertIsInstance(r, User)
-                self.assertIn(r.name, user_names)
+            self.setup_fetch_mock(m, 200, body=response_body)
+            with self.assertRaises(InfluxDBClientError) as cm:
+                yield client.foo.drop_series('cpu_load')
 
-            self.assert_mock_args(m, '/db/%s/users' % db_name)
+            self.assertEqual(str(cm.exception),
+                             'measurement not found: cpu_load')
+            self.assert_mock_args(m, '/query', query=query,
+                                  qs={'db': db_name})
 
     @gen_test
-    def test_get_user(self):
+    def test_grant_privilege_to_using_string(self):
         client = AsyncfluxClient()
-        db_name = 'foo'
-        db = client[db_name]
+        response_body = {'results': [{}]}
+        privilege = 'ALL'
         username = 'foo'
-        user = {'name': username, 'isAdmin': False, 'writeTo': '^$',
-                'readFrom': '^$'}
+        db_name = 'bar'
+        query = 'GRANT ALL ON bar TO foo'
 
         with self.patch_fetch_mock(client) as m:
-            self.setup_fetch_mock(m, 200, body=user)
-            response = yield db.get_user('foo')
-            self.assertIsInstance(response, User)
-            self.assertEqual(response.name, user['name'])
-            self.assertEqual(response.is_admin, user['isAdmin'])
-            self.assertEqual(response.write_to, user['writeTo'])
-            self.assertEqual(response.read_from, user['readFrom'])
+            self.setup_fetch_mock(m, 200, body=response_body)
+            yield client[db_name].grant_privilege_to(privilege, username)
 
-            self.assert_mock_args(m, '/db/%s/users/%s' % (db_name, username))
-
-        # Non-existing database user
-        response_body = 'Invalid username %s' % username
-        with self.patch_fetch_mock(client) as m:
-            self.setup_fetch_mock(m, 400, body=response_body)
-            with self.assertRaisesRegexp(AsyncfluxError, response_body):
-                yield db.get_user(username)
-
-            self.assert_mock_args(m, '/db/%s/users/%s' % (db_name, username))
+            self.assert_mock_args(m, '/query', query=query)
 
     @gen_test
-    def test_create_user(self):
+    def test_grant_privilege_to_using_class(self):
         client = AsyncfluxClient()
-        db_name = 'foo'
-        db = client[db_name]
-        username = 'foo'
-        password = 'fubar'
-        is_admin = True
-        read_from = '.*'
-        write_to = '.*'
+        response_body = {'results': [{}]}
+        privilege = 'ALL'
+        user = User(client, 'foo')
+        db_name = 'bar'
+        query = 'GRANT ALL ON bar TO foo'
 
-        payload = {'name': username, 'password': password, 'isAdmin': is_admin,
-                   'readFrom': read_from, 'writeTo': write_to}
         with self.patch_fetch_mock(client) as m:
-            self.setup_fetch_mock(m, 200)
-            response = yield db.create_user(username, password,
-                                            is_admin=is_admin,
-                                            read_from=read_from,
-                                            write_to=write_to)
-            self.assertIsInstance(response, User)
-            self.assertEqual(response.name, username)
+            self.setup_fetch_mock(m, 200, body=response_body)
+            yield client[db_name].grant_privilege_to(privilege, user)
 
-            self.assert_mock_args(m, '/db/%s/users' % db_name, method='POST',
-                                  body=json.dumps(payload))
-
-        # Without permissions
-        payload = {'name': username, 'password': password, 'isAdmin': False}
-        with self.patch_fetch_mock(client) as m:
-            self.setup_fetch_mock(m, 200)
-            response = yield db.create_user(username, password)
-            self.assertIsInstance(response, User)
-            self.assertEqual(response.name, username)
-            self.assertEqual(response.is_admin, False)
-            self.assertEqual(response.read_from, '.*')
-            self.assertEqual(response.write_to, '.*')
-
-            self.assert_mock_args(m, '/db/%s/users' % db_name, method='POST',
-                                  body=json.dumps(payload))
-
-        # Invalid permission argument values
-        exc_msg = 'You have to provide read and write permissions'
-        with self.assertRaisesRegexp(ValueError, exc_msg):
-            yield db.create_user(username, password, is_admin=is_admin,
-                                 read_from=read_from)
-
-        with self.assertRaisesRegexp(ValueError, exc_msg):
-            yield db.create_user(username, password, is_admin=is_admin,
-                                 write_to=write_to)
-
-        # Existing database user
-        payload = {'name': username, 'password': password, 'isAdmin': is_admin,
-                   'readFrom': read_from, 'writeTo': write_to}
-        response_body = 'User %s already exists' % username
-        with self.patch_fetch_mock(client) as m:
-            self.setup_fetch_mock(m, 400, body=response_body)
-            with self.assertRaisesRegexp(AsyncfluxError, response_body):
-                yield db.create_user(username, password, is_admin=is_admin,
-                                     read_from=read_from, write_to=write_to)
-
-            self.assert_mock_args(m, '/db/%s/users' % db_name, method='POST',
-                                  body=json.dumps(payload))
-
-        # Invalid password
-        password = 'bar'
-        payload = {'name': username, 'password': password, 'isAdmin': is_admin,
-                   'readFrom': read_from, 'writeTo': write_to}
-        response_body = ('Password must be more than 4 and less than 56 '
-                         'characters')
-        with self.patch_fetch_mock(client) as m:
-            self.setup_fetch_mock(m, 400, body=response_body)
-            with self.assertRaisesRegexp(AsyncfluxError, response_body):
-                yield db.create_user(username, password, is_admin=is_admin,
-                                     read_from=read_from, write_to=write_to)
-
-            self.assert_mock_args(m, '/db/%s/users' % db_name, method='POST',
-                                  body=json.dumps(payload))
-
-        # Non-default permissions
-        read_from = '^$'
-        write_to = '^$'
-        payload = {'name': username, 'password': password, 'isAdmin': is_admin,
-                   'readFrom': read_from, 'writeTo': write_to}
-        with self.patch_fetch_mock(client) as m:
-            self.setup_fetch_mock(m, 200)
-            response = yield db.create_user(username, password,
-                                            is_admin=is_admin,
-                                            read_from=read_from,
-                                            write_to=write_to)
-            self.assertIsInstance(response, User)
-            self.assertEqual(response.name, username)
-
-            self.assert_mock_args(m, '/db/%s/users' % db_name, method='POST',
-                                  body=json.dumps(payload))
+            self.assert_mock_args(m, '/query', query=query)
 
     @gen_test
-    def test_update_user(self):
+    def test_grant_privilege_to_non_existing_user(self):
         client = AsyncfluxClient()
-        db_name = 'foo'
-        db = client[db_name]
+        response_body = {'results': [{'error': 'user not found'}]}
+        privilege = 'ALL'
         username = 'foo'
-        password = 'fubar'
-        is_admin = True
-        read_from = '^$'
-        write_to = '^$'
+        db_name = 'bar'
+        query = 'GRANT ALL ON bar TO foo'
 
-        # Update password
-        payload = {'password': password}
         with self.patch_fetch_mock(client) as m:
-            self.setup_fetch_mock(m, 200)
-            response = yield db.update_user(username, password)
-            self.assertIsNone(response)
+            self.setup_fetch_mock(m, 200, body=response_body)
+            with self.assertRaises(InfluxDBClientError) as cm:
+                yield client[db_name].grant_privilege_to(privilege, username)
 
-            self.assert_mock_args(m, '/db/%s/users/%s' % (db_name, username),
-                                  method='POST', body=json.dumps(payload))
-
-        # Update isAdmin value
-        payload = {'isAdmin': is_admin}
-        with self.patch_fetch_mock(client) as m:
-            self.setup_fetch_mock(m, 200)
-            response = yield db.update_user(username, is_admin=is_admin)
-            self.assertIsNone(response)
-
-            self.assert_mock_args(m, '/db/%s/users/%s' % (db_name, username),
-                                  method='POST', body=json.dumps(payload))
-
-        # Update permissions
-        payload = {'readFrom': read_from, 'writeTo': write_to}
-        with self.patch_fetch_mock(client) as m:
-            self.setup_fetch_mock(m, 200)
-            response = yield db.update_user(username, read_from=read_from,
-                                            write_to=write_to)
-            self.assertIsNone(response)
-
-            self.assert_mock_args(m, '/db/%s/users/%s' % (db_name, username),
-                                  method='POST', body=json.dumps(payload))
-
-        # Invalid permission argument values
-        exc_msg = 'You have to provide read and write permissions'
-        with self.assertRaisesRegexp(ValueError, exc_msg):
-            yield db.update_user(username, password, is_admin=is_admin,
-                                 read_from=read_from)
-
-        # Without any arguments
-        exc_msg = 'You have to set at least one argument'
-        with self.assertRaisesRegexp(ValueError, exc_msg):
-            yield db.update_user(username)
+            self.assertEqual(str(cm.exception), 'user not found')
+            self.assert_mock_args(m, '/query', query=query)
 
     @gen_test
-    def test_change_user_password(self):
+    def test_revoke_privilege_from_using_string(self):
         client = AsyncfluxClient()
-        db_name = 'foo'
-        db = client[db_name]
+        response_body = {'results': [{}]}
+        privilege = 'ALL'
         username = 'foo'
-        password = 'fubar'
+        db_name = 'bar'
+        query = 'REVOKE ALL ON bar FROM foo'
 
-        payload = {'password': password}
         with self.patch_fetch_mock(client) as m:
-            self.setup_fetch_mock(m, 200)
-            response = yield db.change_user_password(username, password)
-            self.assertIsNone(response)
+            self.setup_fetch_mock(m, 200, body=response_body)
+            yield client[db_name].revoke_privilege_from(privilege, username)
 
-            self.assert_mock_args(m, '/db/%s/users/%s' % (db_name, username),
-                                  method='POST', body=json.dumps(payload))
-
-        # Non-existing user
-        response_body = "Invalid username %s" % username
-        with self.patch_fetch_mock(client) as m:
-            self.setup_fetch_mock(m, 400, body=response_body)
-            with self.assertRaisesRegexp(AsyncfluxError, response_body):
-                yield db.change_user_password(username, password)
-
-            self.assert_mock_args(m, '/db/%s/users/%s' % (db_name, username),
-                                  method='POST', body=json.dumps(payload))
-
-        # Invalid password
-        password = 'bar'
-        payload = {'password': password}
-        response_body = ('Password must be more than 4 and less than 56 '
-                         'characters')
-        with self.patch_fetch_mock(client) as m:
-            self.setup_fetch_mock(m, 400, body=response_body)
-            with self.assertRaisesRegexp(AsyncfluxError, response_body):
-                yield db.change_user_password(username, password)
-
-            self.assert_mock_args(m, '/db/%s/users/%s' % (db_name, username),
-                                  method='POST', body=json.dumps(payload))
+            self.assert_mock_args(m, '/query', query=query)
 
     @gen_test
-    def test_change_user_privileges(self):
+    def test_revoke_privilege_from_using_class(self):
         client = AsyncfluxClient()
-        db_name = 'foo'
-        db = client[db_name]
-        username = 'foo'
-        is_admin = True
-        read_from = '^$'
-        write_to = '^$'
+        response_body = {'results': [{}]}
+        privilege = 'ALL'
+        user = User(client, 'foo')
+        db_name = 'bar'
+        query = 'REVOKE ALL ON bar FROM foo'
 
-        # Update permissions
-        payload = {'isAdmin': is_admin, 'readFrom': read_from,
-                   'writeTo': write_to}
         with self.patch_fetch_mock(client) as m:
-            self.setup_fetch_mock(m, 200)
-            response = yield db.change_user_privileges(username, is_admin,
-                                                       read_from=read_from,
-                                                       write_to=write_to)
-            self.assertIsNone(response)
+            self.setup_fetch_mock(m, 200, body=response_body)
+            yield client[db_name].revoke_privilege_from(privilege, user)
 
-            self.assert_mock_args(m, '/db/%s/users/%s' % (db_name, username),
-                                  method='POST', body=json.dumps(payload))
-
-        payload = {'isAdmin': is_admin}
-        with self.patch_fetch_mock(client) as m:
-            self.setup_fetch_mock(m, 200)
-            yield db.change_user_privileges(username, is_admin, None, None)
-            self.assertIsNone(response)
-
-            self.assert_mock_args(m, '/db/%s/users/%s' % (db_name, username),
-                                  method='POST', body=json.dumps(payload))
-
-        # Non-existing user
-        payload = {'isAdmin': is_admin, 'readFrom': read_from,
-                   'writeTo': write_to}
-        response_body = "Invalid username %s" % username
-        with self.patch_fetch_mock(client) as m:
-            self.setup_fetch_mock(m, 400, body=response_body)
-            with self.assertRaisesRegexp(AsyncfluxError, response_body):
-                yield db.change_user_privileges(username, is_admin,
-                                                read_from=read_from,
-                                                write_to=write_to)
-
-            self.assert_mock_args(m, '/db/%s/users/%s' % (db_name, username),
-                                  method='POST', body=json.dumps(payload))
-
-        # Invalid permission argument values
-        exc_msg = 'You have to provide read and write permissions'
-        with self.assertRaisesRegexp(ValueError, exc_msg):
-            yield db.change_user_privileges(username, is_admin, read_from, None)
-
-        with self.assertRaisesRegexp(ValueError, exc_msg):
-            yield db.change_user_privileges(username, is_admin, None, write_to)
+            self.assert_mock_args(m, '/query', query=query)
 
     @gen_test
-    def test_change_user_permissions(self):
+    def test_revoke_privilege_from_non_existing_user(self):
         client = AsyncfluxClient()
-        db_name = 'foo'
-        db = client[db_name]
+        response_body = {'results': [{'error': 'user not found'}]}
+        privilege = 'ALL'
         username = 'foo'
-        read_from = '^$'
-        write_to = '^$'
+        db_name = 'bar'
+        query = 'REVOKE ALL ON bar FROM foo'
 
-        # Update permissions
-        payload = {'readFrom': read_from, 'writeTo': write_to}
         with self.patch_fetch_mock(client) as m:
-            self.setup_fetch_mock(m, 200)
-            response = yield db.change_user_permissions(username,
-                                                        read_from=read_from,
-                                                        write_to=write_to)
-            self.assertIsNone(response)
+            self.setup_fetch_mock(m, 200, body=response_body)
+            with self.assertRaises(InfluxDBClientError) as cm:
+                yield client[db_name].revoke_privilege_from(privilege, username)
 
-            self.assert_mock_args(m, '/db/%s/users/%s' % (db_name, username),
-                                  method='POST', body=json.dumps(payload))
-
-        # Non-existing user
-        response_body = "Invalid username %s" % username
-        with self.patch_fetch_mock(client) as m:
-            self.setup_fetch_mock(m, 400, body=response_body)
-            with self.assertRaisesRegexp(AsyncfluxError, response_body):
-                yield db.change_user_permissions(username, read_from=read_from,
-                                                 write_to=write_to)
-
-            self.assert_mock_args(m, '/db/%s/users/%s' % (db_name, username),
-                                  method='POST', body=json.dumps(payload))
-
-        # Invalid permission argument values
-        exc_msg = 'You have to provide read and write permissions'
-        with self.assertRaisesRegexp(ValueError, exc_msg):
-            yield db.change_user_permissions(username, None, None)
-
-        with self.assertRaisesRegexp(ValueError, exc_msg):
-            yield db.change_user_permissions(username, read_from, None)
-
-        with self.assertRaisesRegexp(ValueError, exc_msg):
-            yield db.change_user_permissions(username, None, write_to)
+            self.assertEqual(str(cm.exception), 'user not found')
+            self.assert_mock_args(m, '/query', query=query)
 
     @gen_test
-    def test_delete_user(self):
+    def test_get_retention_policies(self):
         client = AsyncfluxClient()
+        response_body = {
+            'results': [
+                {
+                    'series': [
+                        {
+                            'columns': [
+                                'name', 'duration', 'replicaN', 'default'
+                            ],
+                            'values': [
+                                ['default', '0', 1, True]
+                            ]
+                        }
+                    ]
+                }
+            ]
+        }
         db_name = 'foo'
-        db = client[db_name]
-        username = 'foo'
+        query = 'SHOW RETENTION POLICIES ON foo'
+        retentions = [{
+            'name': 'default',
+            'duration': '0',
+            'replicaN': 1,
+            'default': True
+        }]
 
         with self.patch_fetch_mock(client) as m:
-            self.setup_fetch_mock(m, 200)
-            response = yield db.delete_user(username)
-            self.assertIsNone(response)
+            self.setup_fetch_mock(m, 200, body=response_body)
+            response = yield client[db_name].get_retention_policies()
 
-            self.assert_mock_args(m, '/db/%s/users/%s' % (db_name, username),
-                                  method='DELETE')
-
-        # Non-existing user
-        response_body = "User %s doesn't exists" % username
-        with self.patch_fetch_mock(client) as m:
-            self.setup_fetch_mock(m, 400, body=response_body)
-            with self.assertRaisesRegexp(AsyncfluxError, response_body):
-                yield db.delete_user(username)
-
-            self.assert_mock_args(m, '/db/%s/users/%s' % (db_name, username),
-                                  method='DELETE')
+            self.assertEqual(len(response), len(retentions))
+            for raw, retention in zip(response, retentions):
+                self.assertIsInstance(raw, RetentionPolicy)
+                self.assertEqual(raw.name, retention['name'])
+                self.assertEqual(raw.duration, retention['duration'])
+                self.assertEqual(raw.replication, retention['replicaN'])
+                self.assertEqual(raw.default, retention['default'])
+            self.assert_mock_args(m, '/query', query=query)
 
     @gen_test
-    def test_authenticate_user(self):
+    def test_get_retention_policy_names(self):
         client = AsyncfluxClient()
+        response_body = {
+            'results': [
+                {
+                    'series': [
+                        {
+                            'columns': [
+                                'name', 'duration', 'replicaN', 'default'
+                            ],
+                            'values': [
+                                ['default', '0', 1, True]
+                            ]
+                        }
+                    ]
+                }
+            ]
+        }
         db_name = 'foo'
-        db = client[db_name]
-        username = 'foo'
-        password = 'bar'
+        query = 'SHOW RETENTION POLICIES ON foo'
+        retention_names = ['default']
 
         with self.patch_fetch_mock(client) as m:
-            self.setup_fetch_mock(m, 200)
-            response = yield db.authenticate_user(username, password)
-            self.assertTrue(response)
+            self.setup_fetch_mock(m, 200, body=response_body)
+            response = yield client[db_name].get_retention_policy_names()
 
-            self.assert_mock_args(m, '/db/%s/authenticate' % db_name,
-                                  auth_username=username,
-                                  auth_password=password)
+            self.assertEqual(len(response), len(retention_names))
+            for raw, retention in zip(response, retention_names):
+                self.assertEqual(raw, retention)
+            self.assert_mock_args(m, '/query', query=query)
 
-        # Invalid credentials
-        response_body = 'Invalid username/password'
+    @gen_test
+    def test_get_retention_policy_names_non_existing_database(self):
+        client = AsyncfluxClient()
+        response_body = {'results': [{'error': 'database not found'}]}
+        db_name = 'foo'
+        query = 'SHOW RETENTION POLICIES ON foo'
+
         with self.patch_fetch_mock(client) as m:
-            self.setup_fetch_mock(m, 401, body=response_body)
-            response = yield db.authenticate_user(username, password)
-            self.assertFalse(response)
+            self.setup_fetch_mock(m, 200, body=response_body)
+            with self.assertRaises(InfluxDBClientError) as cm:
+                yield client[db_name].get_retention_policy_names()
 
-            self.assert_mock_args(m, '/db/%s/authenticate' % db_name,
-                                  auth_username=username,
-                                  auth_password=password)
+            self.assertEqual(str(cm.exception), 'database not found')
+            self.assert_mock_args(m, '/query', query=query)
+
+    @gen_test
+    def test_create_retention_policy(self):
+        client = AsyncfluxClient()
+        response_body = {'results': [{}]}
+        db_name = 'foo'
+        rp_name = 'bar'
+        query = 'CREATE RETENTION POLICY bar ON foo DURATION 30d REPLICATION 1'
+
+        with self.patch_fetch_mock(client) as m:
+            self.setup_fetch_mock(m, 200, body=response_body)
+            response = yield client[db_name].create_retention_policy(rp_name,
+                                                                     '30d', 1)
+
+            self.assertIsInstance(response, RetentionPolicy)
+            self.assertEqual(response.name, rp_name)
+            self.assertEqual(response.duration, '30d')
+            self.assertEqual(response.replication, 1)
+            self.assertEqual(response.default, False)
+            self.assert_mock_args(m, '/query', query=query)
+
+    @gen_test
+    def test_create_retention_policy_default(self):
+        client = AsyncfluxClient()
+        response_body = {'results': [{}]}
+        db_name = 'foo'
+        rp_name = 'bar'
+        query = ('CREATE RETENTION POLICY bar ON foo DURATION 30d '
+                 'REPLICATION 1 DEFAULT')
+
+        with self.patch_fetch_mock(client) as m:
+            self.setup_fetch_mock(m, 200, body=response_body)
+            response = yield client[db_name].create_retention_policy(rp_name,
+                                                                     '30d', 1,
+                                                                     True)
+
+            self.assertIsInstance(response, RetentionPolicy)
+            self.assertEqual(response.name, rp_name)
+            self.assertEqual(response.duration, '30d')
+            self.assertEqual(response.replication, 1)
+            self.assertEqual(response.default, True)
+            self.assert_mock_args(m, '/query', query=query)
+
+    @gen_test
+    def test_create_retention_policy_non_existing_database(self):
+        client = AsyncfluxClient()
+        response_body = {'results': [{'error': 'database not found'}]}
+        db_name = 'foo'
+        rp_name = 'bar'
+        query = 'CREATE RETENTION POLICY bar ON foo DURATION 30d REPLICATION 1'
+
+        with self.patch_fetch_mock(client) as m:
+            self.setup_fetch_mock(m, 200, body=response_body)
+            with self.assertRaises(InfluxDBClientError) as cm:
+                yield client[db_name].create_retention_policy(rp_name, '30d',
+                                                              1)
+
+            self.assertEqual(str(cm.exception), 'database not found')
+            self.assert_mock_args(m, '/query', query=query)
+
+    @gen_test
+    def test_create_retention_policy_already_existing_retention(self):
+        client = AsyncfluxClient()
+        response_body = {
+            'results': [{'error': 'retention policy already exists'}]
+        }
+        db_name = 'foo'
+        rp_name = 'bar'
+        query = 'CREATE RETENTION POLICY bar ON foo DURATION 30d REPLICATION 1'
+
+        with self.patch_fetch_mock(client) as m:
+            self.setup_fetch_mock(m, 200, body=response_body)
+            with self.assertRaises(InfluxDBClientError) as cm:
+                yield client[db_name].create_retention_policy(rp_name, '30d',
+                                                              1)
+
+            self.assertEqual(str(cm.exception),
+                             'retention policy already exists')
+            self.assert_mock_args(m, '/query', query=query)
+
+    @gen_test
+    def test_alter_retention_policy_duration(self):
+        client = AsyncfluxClient()
+        response_body = {'results': [{}]}
+        db_name = 'foo'
+        rp_name = 'bar'
+        query = 'ALTER RETENTION POLICY bar ON foo DURATION 5d'
+
+        with self.patch_fetch_mock(client) as m:
+            self.setup_fetch_mock(m, 200, body=response_body)
+            yield client[db_name].alter_retention_policy(rp_name,
+                                                         duration='5d')
+
+            self.assert_mock_args(m, '/query', query=query)
+
+    @gen_test
+    def test_alter_retention_policy_replication(self):
+        client = AsyncfluxClient()
+        response_body = {'results': [{}]}
+        db_name = 'foo'
+        rp_name = 'bar'
+        query = 'ALTER RETENTION POLICY bar ON foo REPLICATION 2'
+
+        with self.patch_fetch_mock(client) as m:
+            self.setup_fetch_mock(m, 200, body=response_body)
+            yield client[db_name].alter_retention_policy(rp_name,
+                                                         replication=2)
+
+            self.assert_mock_args(m, '/query', query=query)
+
+    @gen_test
+    def test_alter_retention_policy_default(self):
+        client = AsyncfluxClient()
+        response_body = {'results': [{}]}
+        db_name = 'foo'
+        rp_name = 'bar'
+        query = 'ALTER RETENTION POLICY bar ON foo DEFAULT'
+
+        with self.patch_fetch_mock(client) as m:
+            self.setup_fetch_mock(m, 200, body=response_body)
+            yield client[db_name].alter_retention_policy(rp_name,
+                                                         default=True)
+
+            self.assert_mock_args(m, '/query', query=query)
+
+    @gen_test
+    def test_alter_retention_policy_duration_and_replication(self):
+        client = AsyncfluxClient()
+        response_body = {'results': [{}]}
+        db_name = 'foo'
+        rp_name = 'bar'
+        query = 'ALTER RETENTION POLICY bar ON foo DURATION 5d REPLICATION 2'
+
+        with self.patch_fetch_mock(client) as m:
+            self.setup_fetch_mock(m, 200, body=response_body)
+            yield client[db_name].alter_retention_policy(rp_name,
+                                                         duration='5d',
+                                                         replication=2)
+
+            self.assert_mock_args(m, '/query', query=query)
+
+    @gen_test
+    def test_alter_retention_policy_duration_and_default(self):
+        client = AsyncfluxClient()
+        response_body = {'results': [{}]}
+        db_name = 'foo'
+        rp_name = 'bar'
+        query = 'ALTER RETENTION POLICY bar ON foo DURATION 5d DEFAULT'
+
+        with self.patch_fetch_mock(client) as m:
+            self.setup_fetch_mock(m, 200, body=response_body)
+            yield client[db_name].alter_retention_policy(rp_name,
+                                                         duration='5d',
+                                                         default=True)
+
+            self.assert_mock_args(m, '/query', query=query)
+
+    @gen_test
+    def test_alter_retention_policy_replication_and_default(self):
+        client = AsyncfluxClient()
+        response_body = {'results': [{}]}
+        db_name = 'foo'
+        rp_name = 'bar'
+        query = 'ALTER RETENTION POLICY bar ON foo REPLICATION 2 DEFAULT'
+
+        with self.patch_fetch_mock(client) as m:
+            self.setup_fetch_mock(m, 200, body=response_body)
+            yield client[db_name].alter_retention_policy(rp_name,
+                                                         replication=2,
+                                                         default=True)
+
+            self.assert_mock_args(m, '/query', query=query)
+
+    @gen_test
+    def test_alter_retention_policy_all_arguments(self):
+        client = AsyncfluxClient()
+        response_body = {'results': [{}]}
+        db_name = 'foo'
+        rp_name = 'bar'
+        query = ('ALTER RETENTION POLICY bar ON foo DURATION 5d REPLICATION 2 '
+                 'DEFAULT')
+
+        with self.patch_fetch_mock(client) as m:
+            self.setup_fetch_mock(m, 200, body=response_body)
+            yield client[db_name].alter_retention_policy(rp_name,
+                                                         duration='5d',
+                                                         replication=2,
+                                                         default=True)
+
+            self.assert_mock_args(m, '/query', query=query)
+
+    @gen_test
+    def test_alter_retention_policy_non_existing_database(self):
+        client = AsyncfluxClient()
+        response_body = {'results': [{'error': 'database not found'}]}
+        db_name = 'foo'
+        rp_name = 'bar'
+        query = 'ALTER RETENTION POLICY bar ON foo DURATION 30d REPLICATION 1'
+
+        with self.patch_fetch_mock(client) as m:
+            self.setup_fetch_mock(m, 200, body=response_body)
+            with self.assertRaises(InfluxDBClientError) as cm:
+                yield client[db_name].alter_retention_policy(rp_name, '30d', 1)
+
+            self.assertEqual(str(cm.exception), 'database not found')
+            self.assert_mock_args(m, '/query', query=query)
+
+    @gen_test
+    def test_alter_retention_policy_non_existing_retention(self):
+        client = AsyncfluxClient()
+        response_body = {'results': [{'error': 'retention policy not found'}]}
+        db_name = 'foo'
+        rp_name = 'bar'
+        query = 'ALTER RETENTION POLICY bar ON foo DURATION 30d REPLICATION 1'
+
+        with self.patch_fetch_mock(client) as m:
+            self.setup_fetch_mock(m, 200, body=response_body)
+            with self.assertRaises(InfluxDBClientError) as cm:
+                yield client[db_name].alter_retention_policy(rp_name, '30d', 1)
+
+            self.assertEqual(str(cm.exception), 'retention policy not found')
+            self.assert_mock_args(m, '/query', query=query)
+
+    @gen_test
+    def test_drop_retention_policy(self):
+        client = AsyncfluxClient()
+        response_body = {'results': [{}]}
+        db_name = 'foo'
+        rp_name = 'bar'
+        query = 'DROP RETENTION POLICY bar ON foo'
+
+        with self.patch_fetch_mock(client) as m:
+            self.setup_fetch_mock(m, 200, body=response_body)
+            yield client[db_name].drop_retention_policy(rp_name)
+
+            self.assert_mock_args(m, '/query', query=query)
+
+    @gen_test
+    def test_drop_retention_policy_non_existing_database(self):
+        client = AsyncfluxClient()
+        response_body = {'results': [{'error': 'database not found'}]}
+        db_name = 'foo'
+        rp_name = 'bar'
+        query = 'DROP RETENTION POLICY bar ON foo'
+
+        with self.patch_fetch_mock(client) as m:
+            self.setup_fetch_mock(m, 200, body=response_body)
+            with self.assertRaises(InfluxDBClientError) as cm:
+                yield client[db_name].drop_retention_policy(rp_name)
+
+            self.assertEqual(str(cm.exception), 'database not found')
+            self.assert_mock_args(m, '/query', query=query)
+
+    @gen_test
+    def test_drop_retention_policy_non_existing_retention(self):
+        client = AsyncfluxClient()
+        response_body = {'results': [{'error': 'retention policy not found'}]}
+        db_name = 'foo'
+        rp_name = 'bar'
+        query = 'DROP RETENTION POLICY bar ON foo'
+
+        with self.patch_fetch_mock(client) as m:
+            self.setup_fetch_mock(m, 200, body=response_body)
+            with self.assertRaises(InfluxDBClientError) as cm:
+                yield client[db_name].drop_retention_policy(rp_name)
+
+            self.assertEqual(str(cm.exception), 'retention policy not found')
+            self.assert_mock_args(m, '/query', query=query)
+
+    @gen_test
+    def test_drop(self):
+        client = AsyncfluxClient()
+        response_body = {'results': [{}]}
+
+        with self.patch_fetch_mock(client) as m:
+            self.setup_fetch_mock(m, 200, body=response_body)
+            yield client.foo.drop()
+
+            self.assert_mock_args(m, '/query', query='DROP DATABASE foo')
+
+    @gen_test
+    def test_drop_non_existing_one(self):
+        client = AsyncfluxClient()
+        response_body = {'results': [{'error': 'database not found: foo'}]}
+
+        with self.patch_fetch_mock(client) as m:
+            self.setup_fetch_mock(m, 200, body=response_body)
+            with self.assertRaises(InfluxDBClientError) as cm:
+                yield client.foo.drop()
+
+            self.assertEqual(str(cm.exception), 'database not found: foo')
+            self.assert_mock_args(m, '/query', query='DROP DATABASE foo')
 
     def test_repr(self):
         host = 'localhost'

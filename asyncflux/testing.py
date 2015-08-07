@@ -7,6 +7,7 @@ try:
 except ImportError:  # pragma: no cover
     from io import StringIO  # pragma: no cover
 
+from tornado import httputil
 from tornado.gen import coroutine, Return
 from tornado.httpclient import HTTPError, HTTPRequest, HTTPResponse
 from tornado.testing import AsyncTestCase, gen_test
@@ -36,10 +37,14 @@ class AsyncfluxTestCase(AsyncTestCase):
 
         fetch_mock.side_effect = side_effect
 
-    def assert_mock_args(self, fetch_mock, path, method='GET', body=None,
-                         auth_username='root', auth_password='root', *args,
-                         **kwargs):
-        url = 'http://localhost:8086' + path
+    def assert_mock_args(self, fetch_mock, path, query=None, qs=None,
+                         method='GET', body=None, auth_username='root',
+                         auth_password='root', *args, **kwargs):
+        url = 'http://localhost:8086{}'.format(path)
+        if query:
+            url = httputil.url_concat(url, {'q': query})
+        if qs:
+            url = httputil.url_concat(url, qs)
         fetch_mock.assert_called_once_with(url, method=method, body=body,
                                            auth_username=auth_username,
                                            auth_password=auth_password,

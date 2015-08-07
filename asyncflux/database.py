@@ -2,9 +2,8 @@
 """Database level operations"""
 from tornado import gen
 
-from asyncflux import user
-from asyncflux.errors import AsyncfluxError
-from asyncflux.util import asyncflux_coroutine, snake_case_dict
+from asyncflux import retentionpolicy, user
+from asyncflux.util import asyncflux_coroutine
 
 
 class Database(object):
@@ -22,111 +21,117 @@ class Database(object):
         return self.__name
 
     @asyncflux_coroutine
-    def delete(self):
-        yield self.client.delete_database(self.name)
+    def query(self, query, params=None, epoch=None, raise_errors=True):
+        result_set = yield self.client.query(query, params, epoch,
+                                             database=self.name,
+                                             raise_errors=raise_errors)
+        raise gen.Return(result_set)
 
     @asyncflux_coroutine
-    def get_user_names(self):
-        users = yield self.client.request('/db/%(database)s/users',
-                                          {'database': self.name})
-        raise gen.Return([u['name'] for u in users])
+    def get_series(self):
+        result_set = yield self.query('SHOW SERIES')
+        series = []
+        for serie in result_set[0].items():
+            series.append({'name': serie[0][0],
+                           'tags': list(serie[1])})
+        raise gen.Return(series)
 
     @asyncflux_coroutine
-    def get_users(self):
-        us = yield self.client.request('/db/%(database)s/users',
-                                       {'database': self.name})
-        users = [user.User(self, **snake_case_dict(u)) for u in us]
-        raise gen.Return(users)
+    def drop_series(self, measurement=None, tags=None):
+        query_list = ['DROP SERIES']
+        if measurement:
+            query_list.append('FROM "{}"'.format(measurement))
+        if tags:
+            tags_str = ' and '.join(["{}='{}'".format(k, v)
+                                     for k, v in tags.iteriems()])
+            query_list.append('WHERE {}'.format(tags_str))
+        yield self.query(' '.join(query_list))
+
+    def __get_username(self, username_or_user):
+        username = username_or_user
+        if isinstance(username, user.User):
+            username = username_or_user.name
+        if not isinstance(username, basestring):
+            raise TypeError("username_or_user must be an instance of "
+                            "%s or User" % (basestring.__name__,))
+        return username
 
     @asyncflux_coroutine
-    def get_user(self, username):
-        path_params = {'database': self.name, 'username': username}
-        u = yield self.client.request('/db/%(database)s/users/%(username)s',
-                                      path_params)
-        raise gen.Return(user.User(self, **snake_case_dict(u)))
-
-    def __validate_permission_params(self, read_from=None, write_to=None,
-                                     allow_nulls=True):
-        if allow_nulls:
-            condition = bool(read_from) != bool(write_to)
-        else:
-            condition = not(read_from and write_to)
-        if condition:
-            raise ValueError('You have to provide read and write permissions')
+    def grant_privilege_to(self, privilege, username_or_user):
+        username = self.__get_username(username_or_user)
+        yield self.client.grant_privilege(privilege, username, self.name)
 
     @asyncflux_coroutine
-    def create_user(self, username, password, is_admin=False, read_from=None,
-                    write_to=None):
-        self.__validate_permission_params(read_from=read_from,
-                                          write_to=write_to)
-        payload = {'name': username, 'password': password, 'isAdmin': is_admin}
-        if read_from and write_to:
-            payload['readFrom'] = read_from
-            payload['writeTo'] = write_to
-        yield self.client.request('/db/%(database)s/users',
-                                  {'database': self.name}, method='POST',
-                                  body=payload)
-        read_from = read_from or user.User.READ_FROM
-        write_to = write_to or user.User.WRITE_TO
-        new_user = user.User(self, username, is_admin=is_admin,
-                             read_from=read_from, write_to=write_to)
-        raise gen.Return(new_user)
+    def revoke_privilege_from(self, privilege, username_or_user):
+        username = self.__get_username(username_or_user)
+        yield self.client.revoke_privilege(privilege, username, self.name)
 
     @asyncflux_coroutine
-    def update_user(self, username, new_password=None, is_admin=None,
-                    read_from=None, write_to=None):
-        self.__validate_permission_params(read_from=read_from,
-                                          write_to=write_to)
-        payload = {}
-        if new_password:
-            payload['password'] = new_password
-        if is_admin:
-            payload['isAdmin'] = is_admin
-        if read_from and write_to:
-            payload['readFrom'] = read_from
-            payload['writeTo'] = write_to
-        if not payload:
-            raise ValueError('You have to set at least one argument')
-        yield self.client.request('/db/%(database)s/users/%(username)s',
-                                  {'database': self.name, 'username': username},
-                                  method='POST', body=payload)
+    def get_retention_policies(self):
+        query_str = 'SHOW RETENTION POLICIES ON {}'.format(self.name)
+        result_set = yield self.client.query(query_str)
+        retention_policies = [
+            retentionpolicy.RetentionPolicy(self, point['name'],
+                                            point['duration'],
+                                            point['replicaN'],
+                                            point['default'])
+            for point
+            in result_set[0].get_points()
+        ]
+        raise gen.Return(retention_policies)
 
     @asyncflux_coroutine
-    def change_user_password(self, username, new_password):
-        yield self.update_user(username, new_password=new_password)
+    def get_retention_policy_names(self):
+        query_str = 'SHOW RETENTION POLICIES ON {}'.format(self.name)
+        result_set = yield self.client.query(query_str)
+        retention_policies = [
+            point['name']
+            for point
+            in result_set[0].get_points()
+        ]
+        raise gen.Return(retention_policies)
 
     @asyncflux_coroutine
-    def change_user_privileges(self, username, is_admin, read_from=None,
-                               write_to=None):
-        self.__validate_permission_params(read_from=read_from,
-                                          write_to=write_to)
-        yield self.update_user(username, is_admin=is_admin,
-                               read_from=read_from, write_to=write_to)
+    def create_retention_policy(self, retention_name, duration, replication,
+                                default=False):
+        query_format = ('CREATE RETENTION POLICY {} ON {} '
+                        'DURATION {} REPLICATION {}')
+        query_list = [
+            query_format.format(retention_name, self.name, duration,
+                                replication)
+        ]
+        if default:
+            query_list.append('DEFAULT')
+        yield self.client.query(' '.join(query_list))
+        new_retention_policy = retentionpolicy.RetentionPolicy(self,
+                                                               retention_name,
+                                                               duration,
+                                                               replication,
+                                                               default)
+        raise gen.Return(new_retention_policy)
 
     @asyncflux_coroutine
-    def change_user_permissions(self, username, read_from, write_to):
-        self.__validate_permission_params(read_from=read_from,
-                                          write_to=write_to,
-                                          allow_nulls=False)
-        yield self.update_user(username, read_from=read_from,
-                               write_to=write_to)
+    def alter_retention_policy(self, retention_name, duration=None,
+                               replication=None, default=False):
+        query_list = ['ALTER RETENTION POLICY {} ON {}'.format(retention_name,
+                                                               self.name)]
+        if duration:
+            query_list.append('DURATION {}'.format(duration))
+        if replication:
+            query_list.append('REPLICATION {}'.format(replication))
+        if default:
+            query_list.append('DEFAULT')
+        yield self.client.query(' '.join(query_list))
 
     @asyncflux_coroutine
-    def delete_user(self, username):
-        yield self.client.request('/db/%(database)s/users/%(username)s',
-                                  {'database': self.name, 'username': username},
-                                  method='DELETE')
+    def drop_retention_policy(self, retention_name):
+        query_str = 'DROP RETENTION POLICY {} ON {}'.format(retention_name,
+                                                            self.name)
+        yield self.client.query(query_str)
 
     @asyncflux_coroutine
-    def authenticate_user(self, username, password):
-        try:
-            yield self.client.request('/db/%(database)s/authenticate',
-                                      {'database': self.name},
-                                      auth_username=username,
-                                      auth_password=password)
-        except AsyncfluxError:
-            raise gen.Return(False)
-        raise gen.Return(True)
+    def drop(self):
+        yield self.client.drop_database(self.name)
 
     def __repr__(self):
         return "Database(%r, %r)" % (self.client, self.name)
