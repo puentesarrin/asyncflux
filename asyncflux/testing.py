@@ -40,11 +40,10 @@ class AsyncfluxTestCase(AsyncTestCase):
     def assert_mock_args(self, fetch_mock, path, query=None, qs=None,
                          method='GET', body=None, auth_username='root',
                          auth_password='root', *args, **kwargs):
-        url = 'http://localhost:8086{}'.format(path)
+        qs = qs or {}
         if query:
-            url = httputil.url_concat(url, {'q': query})
-        if qs:
-            url = httputil.url_concat(url, qs)
+            qs['q'] = query
+        url = httputil.url_concat('http://localhost:8086{}'.format(path), qs)
         fetch_mock.assert_called_once_with(url, method=method, body=body,
                                            auth_username=auth_username,
                                            auth_password=auth_password,
