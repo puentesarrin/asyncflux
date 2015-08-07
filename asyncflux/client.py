@@ -1,17 +1,13 @@
 # -*- coding: utf-8 -*-
 """Connection to InfluxDB"""
 import json
-import sys
 try:
     from urlparse import urlparse
 except ImportError:  # pragma: no cover
     from urllib.parse import urlparse    # pragma: no cover
-if sys.version_info[0] >= 3:
-    basestring = str  # pragma: no cover
-else:
-    basestring = basestring  # pragma: no cover
 
 from tornado import gen, httpclient, httputil, ioloop
+from tornado.util import basestring_type
 from influxdb.resultset import ResultSet
 
 from asyncflux import database, user
@@ -159,9 +155,9 @@ class AsyncfluxClient(object):
         name = name_or_database
         if isinstance(name, database.Database):
             name = name_or_database.name
-        if not isinstance(name, basestring):
+        if not isinstance(name, basestring_type):
             raise TypeError("name_or_database must be an instance of "
-                            "%s or Database" % (basestring.__name__,))
+                            "%s or Database" % (basestring_type.__name__,))
         yield self.query('CREATE DATABASE {}'.format(name))
         new_database = database.Database(self, name)
         raise gen.Return(new_database)
@@ -171,9 +167,9 @@ class AsyncfluxClient(object):
         name = name_or_database
         if isinstance(name, database.Database):
             name = name_or_database.name
-        if not isinstance(name, basestring):
+        if not isinstance(name, basestring_type):
             raise TypeError("name_or_database must be an instance of "
-                            "%s or Database" % (basestring.__name__,))
+                            "%s or Database" % (basestring_type.__name__,))
         yield self.query('DROP DATABASE {}'.format(name))
 
     @asyncflux_coroutine
