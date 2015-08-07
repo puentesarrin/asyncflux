@@ -128,6 +128,19 @@ class DatabaseTestCase(AsyncfluxTestCase):
             self.assert_mock_args(m, '/query', query=query)
 
     @gen_test
+    def test_grant_privilege_to_unsupported_type(self):
+        client = AsyncfluxClient()
+        privilege = 'ALL'
+        db_name = 'bar'
+
+        with self.patch_fetch_mock(client) as m:
+            re_exc_msg = r'^username_or_user must be an instance'
+            with self.assertRaisesRegexp(TypeError, re_exc_msg):
+                yield client[db_name].grant_privilege_to(privilege, None)
+
+            self.assertFalse(m.called)
+
+    @gen_test
     def test_grant_privilege_to_non_existing_user(self):
         client = AsyncfluxClient()
         response_body = {'results': [{'error': 'user not found'}]}
@@ -173,6 +186,19 @@ class DatabaseTestCase(AsyncfluxTestCase):
             yield client[db_name].revoke_privilege_from(privilege, user)
 
             self.assert_mock_args(m, '/query', query=query)
+
+    @gen_test
+    def test_revoke_privilege_from_unsupported_type(self):
+        client = AsyncfluxClient()
+        privilege = 'ALL'
+        db_name = 'bar'
+
+        with self.patch_fetch_mock(client) as m:
+            re_exc_msg = r'^username_or_user must be an instance'
+            with self.assertRaisesRegexp(TypeError, re_exc_msg):
+                yield client[db_name].revoke_privilege_from(privilege, None)
+
+            self.assertFalse(m.called)
 
     @gen_test
     def test_revoke_privilege_from_non_existing_user(self):
