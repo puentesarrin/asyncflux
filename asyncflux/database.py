@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 """Database level operations"""
 from tornado import gen
+from tornado.util import basestring_type
 
 from asyncflux import retentionpolicy, user
 from asyncflux.util import asyncflux_coroutine
@@ -51,9 +52,9 @@ class Database(object):
         username = username_or_user
         if isinstance(username, user.User):
             username = username_or_user.name
-        if not isinstance(username, basestring):
+        if not isinstance(username, basestring_type):
             raise TypeError("username_or_user must be an instance of "
-                            "%s or User" % (basestring.__name__,))
+                            "%s or User" % (basestring_type.__name__,))
         return username
 
     @asyncflux_coroutine

@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 """Tools for InfluxDB users"""
+from tornado.util import basestring_type
+
 from asyncflux.util import asyncflux_coroutine
 
 
@@ -33,9 +35,9 @@ class User(object):
         from asyncflux import database
         if isinstance(database_name, database.Database):
             database_name = name_or_database.name
-        if not isinstance(database_name, basestring):
+        if not isinstance(database_name, basestring_type):
             raise TypeError("name_or_database must be an instance of "
-                            "%s or Database" % (basestring.__name__,))
+                            "%s or Database" % (basestring_type.__name__,))
         return database_name
 
     @asyncflux_coroutine
