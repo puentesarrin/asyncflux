@@ -26,9 +26,8 @@ class Database(object):
         return self.__name
 
     @asyncflux_coroutine
-    def query(self, query, params=None, epoch=None, raise_errors=True):
-        result_set = yield self.client.query(query, params, epoch,
-                                             database=self.name,
+    def query(self, query, params=None, raise_errors=True):
+        result_set = yield self.client.query(query, params, database=self.name,
                                              raise_errors=raise_errors)
         raise gen.Return(result_set)
 
