@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 """General-purpose utilities"""
 import functools
-import re
 
 from tornado import gen
 
@@ -31,20 +30,3 @@ def asyncflux_coroutine(f):
         else:
             return future
     return wrapper
-
-_SNAKE_RE = re.compile('(?!^)([A-Z]+)')
-
-
-def snake_case(string):
-    return re.sub(_SNAKE_RE, r'_\1', string).lower()
-
-
-def snake_case_dict(_dict):
-    raw_dict = _dict.copy()
-    result = {}
-    try:
-        while 1:
-            key, value = raw_dict.popitem()
-            result[snake_case(key)] = value
-    except KeyError:
-        return result
