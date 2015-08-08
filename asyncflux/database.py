@@ -3,6 +3,8 @@
 from tornado import gen
 from tornado.util import basestring_type
 
+from influxdb.line_protocol import make_lines
+
 from asyncflux import retentionpolicy, user
 from asyncflux.util import asyncflux_coroutine
 
@@ -27,6 +29,19 @@ class Database(object):
                                              database=self.name,
                                              raise_errors=raise_errors)
         raise gen.Return(result_set)
+
+    @asyncflux_coroutine
+    def write(self, data, retention_policy=None, precision=None,
+              consistency=None):
+        qs = {'db': self.name}
+        if retention_policy:
+            qs['rp'] = retention_policy
+        if precision:
+            qs['precision'] = precision
+        if consistency:
+            qs['consistency'] = consistency
+        body = make_lines(data, precision)
+        yield self.client.request('/write', method='POST', qs=qs, body=body)
 
     @asyncflux_coroutine
     def get_series(self):

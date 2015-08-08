@@ -11,6 +11,245 @@ from asyncflux.user import User
 class DatabaseTestCase(AsyncfluxTestCase):
 
     @gen_test
+    def test_write(self):
+        client = AsyncfluxClient()
+        db_name = 'foo'
+        data = {
+            'measurement': 'cpu_load',
+            'points': [
+                {
+                    'tags': {
+                        'host': 'server01',
+                        'region': 'us-east-a1'
+                    },
+                    'time': '2015-11-10T23:00:00Z',
+                    'fields': {
+                        'value': 0.55
+                    }
+                }
+            ]
+        }
+        body = ('cpu_load,host=server01,region=us-east-a1 value=0.55 '
+                '1447196400000000000\n')
+
+        with self.patch_fetch_mock(client) as m:
+            self.setup_fetch_mock(m, 204)
+            yield client[db_name].write(data)
+
+            self.assert_mock_args(m, '/write', method='POST', body=body,
+                                  qs={'db': db_name})
+
+    @gen_test
+    def test_write_non_default_retention_policy(self):
+        client = AsyncfluxClient()
+        db_name = 'foo'
+        data = {
+            'measurement': 'cpu_load',
+            'points': [
+                {
+                    'tags': {
+                        'host': 'server01',
+                        'region': 'us-east-a1'
+                    },
+                    'time': '2015-11-10T23:00:00Z',
+                    'fields': {
+                        'value': 0.55
+                    }
+                }
+            ]
+        }
+        body = ('cpu_load,host=server01,region=us-east-a1 value=0.55 '
+                '1447196400000000000\n')
+
+        with self.patch_fetch_mock(client) as m:
+            self.setup_fetch_mock(m, 204)
+            yield client[db_name].write(data, retention_policy='rp_name')
+
+            self.assert_mock_args(m, '/write', method='POST', body=body,
+                                  qs={'db': db_name, 'rp': 'rp_name'})
+
+    @gen_test
+    def test_write_with_precision(self):
+        client = AsyncfluxClient()
+        db_name = 'foo'
+        data = {
+            'measurement': 'cpu_load',
+            'points': [
+                {
+                    'tags': {
+                        'host': 'server01',
+                        'region': 'us-east-a1'
+                    },
+                    'time': '2015-11-10T23:00:00Z',
+                    'fields': {
+                        'value': 0.55
+                    }
+                }
+            ]
+        }
+        body = ('cpu_load,host=server01,region=us-east-a1 value=0.55 '
+                '1447196400\n')
+
+        with self.patch_fetch_mock(client) as m:
+            self.setup_fetch_mock(m, 204)
+            yield client[db_name].write(data, precision='s')
+
+            self.assert_mock_args(m, '/write', method='POST', body=body,
+                                  qs={'db': db_name, 'precision': 's'})
+
+    @gen_test
+    def test_write_with_consistency(self):
+        client = AsyncfluxClient()
+        db_name = 'foo'
+        data = {
+            'measurement': 'cpu_load',
+            'points': [
+                {
+                    'tags': {
+                        'host': 'server01',
+                        'region': 'us-east-a1'
+                    },
+                    'time': '2015-11-10T23:00:00Z',
+                    'fields': {
+                        'value': 0.55
+                    }
+                }
+            ]
+        }
+        body = ('cpu_load,host=server01,region=us-east-a1 value=0.55 '
+                '1447196400000000000\n')
+
+        with self.patch_fetch_mock(client) as m:
+            self.setup_fetch_mock(m, 204)
+            yield client[db_name].write(data, consistency='all')
+
+            self.assert_mock_args(m, '/write', method='POST', body=body,
+                                  qs={'db': db_name, 'consistency': 'all'})
+
+    @gen_test
+    def test_write_non_default_retention_policy_with_precision(self):
+        client = AsyncfluxClient()
+        db_name = 'foo'
+        data = {
+            'measurement': 'cpu_load',
+            'points': [
+                {
+                    'tags': {
+                        'host': 'server01',
+                        'region': 'us-east-a1'
+                    },
+                    'time': '2015-11-10T23:00:00Z',
+                    'fields': {
+                        'value': 0.55
+                    }
+                }
+            ]
+        }
+        body = ('cpu_load,host=server01,region=us-east-a1 value=0.55 '
+                '1447196400\n')
+
+        with self.patch_fetch_mock(client) as m:
+            self.setup_fetch_mock(m, 204)
+            yield client[db_name].write(data, retention_policy='rp_name',
+                                        precision='s')
+
+            self.assert_mock_args(m, '/write', method='POST', body=body,
+                                  qs={'db': db_name, 'rp': 'rp_name',
+                                      'precision': 's'})
+
+    @gen_test
+    def test_write_non_default_retention_policy_with_consistency(self):
+        client = AsyncfluxClient()
+        db_name = 'foo'
+        data = {
+            'measurement': 'cpu_load',
+            'points': [
+                {
+                    'tags': {
+                        'host': 'server01',
+                        'region': 'us-east-a1'
+                    },
+                    'time': '2015-11-10T23:00:00Z',
+                    'fields': {
+                        'value': 0.55
+                    }
+                }
+            ]
+        }
+        body = ('cpu_load,host=server01,region=us-east-a1 value=0.55 '
+                '1447196400000000000\n')
+
+        with self.patch_fetch_mock(client) as m:
+            self.setup_fetch_mock(m, 204)
+            yield client[db_name].write(data, retention_policy='rp_name',
+                                        consistency='all')
+
+            self.assert_mock_args(m, '/write', method='POST', body=body,
+                                  qs={'db': db_name, 'rp': 'rp_name',
+                                      'consistency': 'all'})
+
+    @gen_test
+    def test_write_with_precision_and_consistency(self):
+        client = AsyncfluxClient()
+        db_name = 'foo'
+        data = {
+            'measurement': 'cpu_load',
+            'points': [
+                {
+                    'tags': {
+                        'host': 'server01',
+                        'region': 'us-east-a1'
+                    },
+                    'time': '2015-11-10T23:00:00Z',
+                    'fields': {
+                        'value': 0.55
+                    }
+                }
+            ]
+        }
+        body = ('cpu_load,host=server01,region=us-east-a1 value=0.55 '
+                '1447196400\n')
+
+        with self.patch_fetch_mock(client) as m:
+            self.setup_fetch_mock(m, 204)
+            yield client[db_name].write(data, precision='s', consistency='all')
+
+            self.assert_mock_args(m, '/write', method='POST', body=body,
+                                  qs={'db': db_name, 'precision': 's',
+                                      'consistency': 'all'})
+
+    @gen_test
+    def test_write_with_all_arguments(self):
+        client = AsyncfluxClient()
+        db_name = 'foo'
+        data = {
+            'measurement': 'cpu_load',
+            'points': [
+                {
+                    'tags': {
+                        'host': 'server01',
+                        'region': 'us-east-a1'
+                    },
+                    'time': '2015-11-10T23:00:00Z',
+                    'fields': {
+                        'value': 0.55
+                    }
+                }
+            ]
+        }
+        body = ('cpu_load,host=server01,region=us-east-a1 value=0.55 '
+                '1447196400\n')
+
+        with self.patch_fetch_mock(client) as m:
+            self.setup_fetch_mock(m, 204)
+            yield client[db_name].write(data, retention_policy='rp_name',
+                                        precision='s', consistency='all')
+
+            self.assert_mock_args(m, '/write', method='POST', body=body,
+                                  qs={'db': db_name, 'rp': 'rp_name',
+                                      'precision': 's', 'consistency': 'all'})
+
+    @gen_test
     def test_get_series(self):
         client = AsyncfluxClient()
         serie_values = [
