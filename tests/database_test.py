@@ -385,6 +385,71 @@ class DatabaseTestCase(AsyncfluxTestCase):
             self.assert_mock_args(m, '/query', query=query, qs={'db': db_name})
 
     @gen_test
+    def test_get_tag_keys(self):
+        client = AsyncfluxClient()
+        response_body = {
+            'results': [
+                {
+                    'series': [
+                        {
+                            'name': 'cpu_load',
+                            'columns': ['tagKey'],
+                            'values': [['host'], ['region']]
+                        },
+                        {
+                            'name': 'disk_free',
+                            'columns': ['tagKey'],
+                            'values': [['hostname']]
+                        }
+                    ]
+                }
+            ]
+        }
+        db_name = 'foo'
+
+        with self.patch_fetch_mock(client) as m:
+            self.setup_fetch_mock(m, 200, body=response_body)
+            response = yield client[db_name].get_tag_keys()
+
+            expected = [
+                ('cpu_load', ['host', 'region']),
+                ('disk_free', ['hostname'])
+            ]
+            self.assertListEqual(response, expected)
+            self.assert_mock_args(m, '/query', query='SHOW TAG KEYS',
+                                  qs={'db': db_name})
+
+    @gen_test
+    def test_get_tag_keys_with_measurement(self):
+        client = AsyncfluxClient()
+        response_body = {
+            'results': [
+                {
+                    'series': [
+                        {
+                            'name': 'cpu_load',
+                            'columns': ['tagKey'],
+                            'values': [['host'], ['region']]
+                        }
+                    ]
+                }
+            ]
+        }
+        db_name = 'foo'
+        measurement = 'cpu_load'
+        query = 'SHOW TAG KEYS FROM cpu_load'
+
+        with self.patch_fetch_mock(client) as m:
+            self.setup_fetch_mock(m, 200, body=response_body)
+            response = yield client[db_name].get_tag_keys(measurement)
+
+            expected = [
+                (measurement, ['host', 'region'])
+            ]
+            self.assertListEqual(response, expected)
+            self.assert_mock_args(m, '/query', query=query, qs={'db': db_name})
+
+    @gen_test
     def test_get_series(self):
         client = AsyncfluxClient()
         serie_values = [

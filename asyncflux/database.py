@@ -77,6 +77,19 @@ class Database(object):
         raise gen.Return(measurements)
 
     @asyncflux_coroutine
+    def get_tag_keys(self, measurement=None):
+        query_list = ['SHOW TAG KEYS']
+        if measurement:
+            query_list.append('FROM {}'.format(measurement))
+        result_set = yield self.query(' '.join(query_list))
+        tag_keys = [
+            (item[0][0], [x['tagKey'] for x in item[1]])
+            for item
+            in result_set[0].items()
+        ]
+        raise gen.Return(tag_keys)
+
+    @asyncflux_coroutine
     def get_series(self):
         result_set = yield self.query('SHOW SERIES')
         series = []
