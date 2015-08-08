@@ -150,6 +150,64 @@ class UserTestCase(AsyncfluxTestCase):
             self.assert_mock_args(m, '/query', query=query)
 
     @gen_test
+    def test_grant_admin_privileges(self):
+        client = AsyncfluxClient()
+        response_body = {'results': [{}]}
+        user = User(client, 'foo')
+        query = 'GRANT ALL PRIVILEGES TO foo'
+
+        with self.patch_fetch_mock(client) as m:
+            self.setup_fetch_mock(m, 200, body=response_body)
+            yield user.grant_admin_privileges()
+
+            self.assertTrue(user.admin)
+            self.assert_mock_args(m, '/query', query=query)
+
+    @gen_test
+    def test_revoke_admin_privileges(self):
+        client = AsyncfluxClient()
+        response_body = {'results': [{}]}
+        user = User(client, 'foo', admin=True)
+        query = 'REVOKE ALL PRIVILEGES FROM foo'
+
+        with self.patch_fetch_mock(client) as m:
+            self.setup_fetch_mock(m, 200, body=response_body)
+            yield user.revoke_admin_privileges()
+
+            self.assertFalse(user.admin)
+            self.assert_mock_args(m, '/query', query=query)
+
+    @gen_test
+    def test_grant_admin_privileges_to_non_existing_one(self):
+        client = AsyncfluxClient()
+        response_body = {'results': [{'error': 'user not found'}]}
+        user = User(client, 'foo')
+        query = 'GRANT ALL PRIVILEGES TO foo'
+
+        with self.patch_fetch_mock(client) as m:
+            self.setup_fetch_mock(m, 200, body=response_body)
+            with self.assertRaises(InfluxDBClientError) as cm:
+                yield user.grant_admin_privileges()
+
+            self.assertEqual(str(cm.exception), 'user not found')
+            self.assert_mock_args(m, '/query', query=query)
+
+    @gen_test
+    def test_revoke_admin_privileges_from_non_existing_user(self):
+        client = AsyncfluxClient()
+        response_body = {'results': [{'error': 'user not found'}]}
+        user = User(client, 'foo')
+        query = 'REVOKE ALL PRIVILEGES FROM foo'
+
+        with self.patch_fetch_mock(client) as m:
+            self.setup_fetch_mock(m, 200, body=response_body)
+            with self.assertRaises(InfluxDBClientError) as cm:
+                yield user.revoke_admin_privileges()
+
+            self.assertEqual(str(cm.exception), 'user not found')
+            self.assert_mock_args(m, '/query', query=query)
+
+    @gen_test
     def test_drop(self):
         client = AsyncfluxClient()
         response_body = {'results': [{}]}

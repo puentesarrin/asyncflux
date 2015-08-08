@@ -51,6 +51,16 @@ class User(object):
         yield self.client.revoke_privilege(privilege, self.name, database_name)
 
     @asyncflux_coroutine
+    def grant_admin_privileges(self):
+        yield self.client.grant_admin_privileges(self.name)
+        self.__admin = True
+
+    @asyncflux_coroutine
+    def revoke_admin_privileges(self):
+        yield self.client.revoke_admin_privileges(self.name)
+        self.__admin = False
+
+    @asyncflux_coroutine
     def drop(self):
         yield self.client.drop_user(self.name)
 
