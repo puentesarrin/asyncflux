@@ -85,9 +85,6 @@ class AsyncfluxTestCase(AsyncTestCase):
             _, args, kwargs = call
             path = args[0]
             qs = kwargs.pop('qs', {})
-            query = kwargs.pop('query', None)
-            if query:
-                qs['q'] = query
             url = httputil.url_concat('http://localhost:8086{}'.format(path),
                                       qs)
             kwargs.update({
