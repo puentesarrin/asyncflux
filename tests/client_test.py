@@ -247,6 +247,17 @@ class AsyncfluxClientTestCase(AsyncfluxTestCase):
 
             self.assertFalse(m.called)
 
+    def test_create_database_unsupported_type_cps(self):
+        client = AsyncfluxClient()
+
+        with self.patch_fetch_mock(client) as m:
+            re_exc_msg = r'^name_or_database must be an instance'
+            with self.assertRaisesRegexp(TypeError, re_exc_msg):
+                client.create_database(None, callback=self.stop_op)
+                self.wait()
+
+            self.assertFalse(m.called)
+
     @gen_test
     def test_create_database_existing_one(self):
         client = AsyncfluxClient()
