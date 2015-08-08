@@ -11,7 +11,6 @@ from tornado.util import basestring_type
 from influxdb.resultset import ResultSet
 
 from asyncflux import database, user
-from asyncflux.errors import AsyncfluxError
 from asyncflux.util import asyncflux_coroutine
 
 
@@ -105,8 +104,8 @@ class AsyncfluxClient(object):
                 auth_username=auth_username, auth_password=auth_password)
             if hasattr(response, 'body') and response.body:
                 raise gen.Return(self.__json.loads(response.body))
-        except httpclient.HTTPError as e:
-            raise AsyncfluxError(e.response)
+        except httpclient.HTTPError:
+            raise
 
     @asyncflux_coroutine
     def ping(self):
