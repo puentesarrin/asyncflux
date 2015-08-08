@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+from mock import call
 from influxdb.exceptions import InfluxDBClientError
 
 from asyncflux import AsyncfluxClient
@@ -248,6 +249,86 @@ class DatabaseTestCase(AsyncfluxTestCase):
             self.assert_mock_args(m, '/write', method='POST', body=body,
                                   qs={'db': db_name, 'rp': 'rp_name',
                                       'precision': 's', 'consistency': 'all'})
+
+    @gen_test
+    def test_write_points(self):
+        client = AsyncfluxClient()
+        db_name = 'foo'
+        points = [
+            {
+                'time': '2015-11-10T23:00:00Z',
+                'fields': {
+                    'value': 0.55
+                }
+            }
+        ]
+        body = ('cpu_load value=0.55 1447196400000000000\n')
+
+        with self.patch_fetch_mock(client) as m:
+            self.setup_fetch_mock(m, 204)
+            yield client[db_name].write_points('cpu_load', points)
+
+            self.assert_mock_args(m, '/write', method='POST', body=body,
+                                  qs={'db': db_name})
+
+    @gen_test
+    def test_write_points_with_tags(self):
+        client = AsyncfluxClient()
+        db_name = 'foo'
+        points = [
+            {
+                'time': '2015-11-10T23:00:00Z',
+                'fields': {
+                    'value': 0.55
+                }
+            }
+        ]
+        tags = {
+            'host': 'server01',
+            'region': 'us-east-a1'
+        }
+        body = ('cpu_load,host=server01,region=us-east-a1 value=0.55 '
+                '1447196400000000000\n')
+
+        with self.patch_fetch_mock(client) as m:
+            self.setup_fetch_mock(m, 204)
+            yield client[db_name].write_points('cpu_load', points,
+                                               tags=tags)
+
+            self.assert_mock_args(m, '/write', method='POST', body=body,
+                                  qs={'db': db_name})
+
+    @gen_test
+    def test_write_points_batches(self):
+        client = AsyncfluxClient()
+        db_name = 'foo'
+        points = [
+            {
+                'time': '2015-11-10T23:00:00Z',
+                'fields': {
+                    'value': 0.55
+                }
+            },
+            {
+                'time': '2015-10-10T22:00:00Z',
+                'fields': {
+                    'value': 0.62
+                }
+            }
+        ]
+        body1 = 'cpu_load value=0.55 1447196400000000000\n'
+        body2 = 'cpu_load value=0.62 1444514400000000000\n'
+        qs = {'db': db_name}
+
+        with self.patch_fetch_mock(client) as m:
+            self.setup_fetch_mock(m, 204)
+            yield client[db_name].write_points('cpu_load', points)
+
+            calls = [
+                call('/write', method='POST', body=body1, qs=qs),
+                call('/write', method='POST', body=body2, qs=qs)
+            ]
+            self.assert_multiple_mock_args(m, calls)
 
     @gen_test
     def test_get_series(self):

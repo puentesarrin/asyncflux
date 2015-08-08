@@ -78,6 +78,28 @@ class AsyncfluxTestCase(AsyncTestCase):
                                            auth_password=auth_password,
                                            *args, **kwargs)
 
+    def assert_multiple_mock_args(self, fetch_mock, calls,
+                                  auth_username='root', auth_password='root'):
+        processed_calls = []
+        for call in calls:
+            _, args, kwargs = call
+            path = args[0]
+            qs = kwargs.pop('qs', {})
+            query = kwargs.pop('query', None)
+            if query:
+                qs['q'] = query
+            url = httputil.url_concat('http://localhost:8086{}'.format(path),
+                                      qs)
+            kwargs.update({
+                'auth_username': kwargs.get('auth_username', auth_username),
+                'auth_password': kwargs.get('auth_password', auth_password),
+            })
+            new_call = mock.call(url, *args[1:], **kwargs)
+            processed_calls.append(new_call)
+
+        self.assertEqual(fetch_mock.call_count, len(processed_calls))
+        self.assertEqual(fetch_mock.call_args_list, processed_calls)
+
     def stop_op(self, result, error):
         if error:
             raise error

@@ -30,3 +30,17 @@ def asyncflux_coroutine(f):
         else:
             return future
     return wrapper
+
+
+def batches(source, batch_size):
+    source = iter(source)
+    while True:
+        batch = []
+        for i in xrange(batch_size):
+            try:
+                batch.append(next(source))
+            except StopIteration:
+                if batch:
+                    yield batch
+                raise StopIteration
+        yield batch

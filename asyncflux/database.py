@@ -6,7 +6,7 @@ from tornado.util import basestring_type
 from influxdb.line_protocol import make_lines
 
 from asyncflux import retentionpolicy, user
-from asyncflux.util import asyncflux_coroutine
+from asyncflux.util import asyncflux_coroutine, batches
 
 
 class Database(object):
@@ -42,6 +42,22 @@ class Database(object):
             qs['consistency'] = consistency
         body = make_lines(data, precision)
         yield self.client.request('/write', method='POST', qs=qs, body=body)
+
+    @asyncflux_coroutine
+    def write_points(self, measurement, points, tags=None,
+                     retention_policy=None, precision=None, consistency=None,
+                     batch_size=None):
+        batch_size = batch_size or 1
+        for batch in batches(points, batch_size):
+            data = {
+                'measurement': measurement,
+                'points': batch
+            }
+            if tags:
+                data['tags'] = tags
+
+            yield self.write(data, retention_policy=retention_policy,
+                             precision=precision, consistency=consistency)
 
     @asyncflux_coroutine
     def get_series(self):
