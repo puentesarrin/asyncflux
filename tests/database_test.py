@@ -322,7 +322,8 @@ class DatabaseTestCase(AsyncfluxTestCase):
 
         with self.patch_fetch_mock(client) as m:
             self.setup_fetch_mock(m, 204)
-            yield client[db_name].write_points('cpu_load', points)
+            yield client[db_name].write_points('cpu_load', points,
+                                               batch_size=1)
 
             calls = [
                 call('/write', method='POST', body=body1, qs=qs),
