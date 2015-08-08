@@ -3,6 +3,10 @@
 import functools
 
 from tornado import gen
+try:
+    xrange
+except NameError:  # pragma: no cover
+    xrange = range  # pragma: no cover
 
 
 def asyncflux_coroutine(f):
