@@ -332,6 +332,59 @@ class DatabaseTestCase(AsyncfluxTestCase):
             self.assert_multiple_mock_args(m, calls)
 
     @gen_test
+    def test_get_measurements(self):
+        client = AsyncfluxClient()
+        response_body = {
+            'results': [
+                {
+                    'series': [
+                        {
+                            'name': 'measurements',
+                            'columns': ['name'],
+                            'values': [["cpu_load"]]
+                        }
+                    ]
+                }
+            ]
+        }
+        db_name = 'foo'
+
+        with self.patch_fetch_mock(client) as m:
+            self.setup_fetch_mock(m, 200, body=response_body)
+            response = yield client[db_name].get_measurements()
+
+            self.assertEqual(response, ['cpu_load'])
+            self.assert_mock_args(m, '/query', query='SHOW MEASUREMENTS',
+                                  qs={'db': db_name})
+
+    @gen_test
+    def test_get_measurements_with_tags(self):
+        client = AsyncfluxClient()
+        response_body = {
+            'results': [
+                {
+                    'series': [
+                        {
+                            'name': 'measurements',
+                            'columns': ['name'],
+                            'values': [["cpu_load"]]
+                        }
+                    ]
+                }
+            ]
+        }
+        db_name = 'foo'
+        query = "SHOW MEASUREMENTS WHERE host='server01'"
+
+        with self.patch_fetch_mock(client) as m:
+            self.setup_fetch_mock(m, 200, body=response_body)
+            response = yield client[db_name].get_measurements({'host':
+                                                               'server01'})
+
+            self.assertEqual(response, ['cpu_load'])
+            self.assert_mock_args(m, '/query', query=query, qs={'db': db_name})
+
+    @gen_test
     def test_get_series(self):
         client = AsyncfluxClient()
         serie_values = [

@@ -61,6 +61,22 @@ class Database(object):
                              precision=precision, consistency=consistency)
 
     @asyncflux_coroutine
+    def get_measurements(self, tags=None):
+        tags = tags or {}
+        query_list = ['SHOW MEASUREMENTS']
+        if tags:
+            tags_str = ' and '.join(["{}='{}'".format(k, v)
+                                     for k, v in tags.items()])
+            query_list.append('WHERE {}'.format(tags_str))
+        result_set = yield self.query(' '.join(query_list))
+        measurements = [
+            point['name']
+            for point
+            in result_set[0].get_points()
+        ]
+        raise gen.Return(measurements)
+
+    @asyncflux_coroutine
     def get_series(self):
         result_set = yield self.query('SHOW SERIES')
         series = []
