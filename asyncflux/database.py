@@ -11,6 +11,8 @@ from asyncflux.util import asyncflux_coroutine, batches
 
 class Database(object):
 
+    BATCH_SIZE = 5000
+
     def __init__(self, client, name):
         self.__client = client
         self.__name = name
@@ -47,7 +49,7 @@ class Database(object):
     def write_points(self, measurement, points, tags=None,
                      retention_policy=None, precision=None, consistency=None,
                      batch_size=None):
-        batch_size = batch_size or 1
+        batch_size = batch_size or self.BATCH_SIZE
         for batch in batches(points, batch_size):
             data = {
                 'measurement': measurement,
