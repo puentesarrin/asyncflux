@@ -15,6 +15,7 @@ from distutils.cmd import Command
 
 with open('README.rst') as f:
     readme_content = f.read()
+__version__ = '0.1+'
 
 
 class DocCommand(Command):
@@ -50,7 +51,7 @@ class DocCommand(Command):
 
 setup(
     name='asyncflux',
-    version='0.1+',
+    version=__version__,
     url='https://github.com/puentesarrin/asyncflux',
     description='Asynchronous client for InfluxDB and Tornado.',
     long_description=readme_content,
