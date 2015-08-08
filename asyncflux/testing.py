@@ -32,7 +32,7 @@ def __sanitize_request_url(method):
 
         url = request_args[0]
         base_url, qs = url[:url.find('?')], parse_qs_bytes(urlparse(url).query)
-        ordered_qs = OrderedDict(sorted(qs.iteritems(), key=lambda x: x[1]))
+        ordered_qs = OrderedDict(sorted(qs.items(), key=lambda x: x[1]))
         sanitized_url = httputil.url_concat(base_url, ordered_qs)
 
         args = (args_type([(sanitized_url, ), request_kwargs, ]), )
