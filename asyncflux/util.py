@@ -2,7 +2,14 @@
 """General-purpose utilities"""
 import functools
 
-from tornado import gen
+from collections import OrderedDict
+
+from tornado import gen, httputil
+from tornado.escape import parse_qs_bytes
+try:
+    from urlparse import urlparse
+except ImportError:  # pragma: no cover
+    from urllib.parse import urlparse  # pragma: no cover
 try:
     xrange
 except NameError:  # pragma: no cover
@@ -34,6 +41,12 @@ def asyncflux_coroutine(f):
         else:
             return future
     return wrapper
+
+
+def sanitize_url(url):
+    base_url, qs = url[:url.find('?')], parse_qs_bytes(urlparse(url).query)
+    ordered_qs = OrderedDict(sorted(qs.items(), key=lambda x: x[1]))
+    return httputil.url_concat(base_url, ordered_qs)
 
 
 def batches(source, batch_size):

@@ -4,21 +4,17 @@ import functools
 import json
 import mock
 
-from collections import OrderedDict
 try:
     from StringIO import StringIO
 except ImportError:  # pragma: no cover
     from io import StringIO  # pragma: no cover
-try:
-    from urlparse import urlparse
-except ImportError:  # pragma: no cover
-    from urllib.parse import urlparse  # pragma: no cover
 
 from tornado import httputil
-from tornado.escape import parse_qs_bytes
 from tornado.gen import coroutine, Return
 from tornado.httpclient import HTTPError, HTTPRequest, HTTPResponse
 from tornado.testing import AsyncTestCase, gen_test
+
+from asyncflux.util import sanitize_url
 
 __all__ = ('AsyncfluxTestCase', 'gen_test', )
 
@@ -30,12 +26,9 @@ def __sanitize_request_url(method):
         args_type = type(args[0])
         request_args, request_kwargs = args[0]
 
-        url = request_args[0]
-        base_url, qs = url[:url.find('?')], parse_qs_bytes(urlparse(url).query)
-        ordered_qs = OrderedDict(sorted(qs.items(), key=lambda x: x[1]))
-        sanitized_url = httputil.url_concat(base_url, ordered_qs)
-
-        args = (args_type([(sanitized_url, ), request_kwargs, ]), )
+        sanitized_url = sanitize_url(request_args[0])
+        new_request_args = (sanitized_url, ) + request_args[1:]
+        args = (args_type([new_request_args, request_kwargs]), )
         return method(self, *args, **kwargs)
 
     return wrapper
