@@ -11,6 +11,10 @@ Asynchronous client for InfluxDB_ and Tornado_.
    :target: https://coveralls.io/r/puentesarrin/asyncflux
    :alt: Coveralls status
 
+.. image:: https://readthedocs.org/projects/asyncflux/badge/?version=latest
+   :target: https://readthedocs.org/projects/asyncflux/?badge=latest
+   :alt: Documentation Status
+
 Installation
 ============
 
