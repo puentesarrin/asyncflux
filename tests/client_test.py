@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+import json
+
 from influxdb.exceptions import InfluxDBClientError
 
 from asyncflux import AsyncfluxClient
@@ -124,6 +126,28 @@ class AsyncfluxClientTestCase(AsyncfluxTestCase):
             self.assertIsInstance(database, Database)
             self.assertEqual(database.client, client)
             self.assertEqual(database.name, db_name)
+
+    @gen_test
+    def test_request_body_dict(self):
+        client = AsyncfluxClient()
+        request_body = {'foo': 'bar'}
+
+        with self.patch_fetch_mock(client) as m:
+            self.setup_fetch_mock(m, 204)
+            yield client.request('/hi', body=request_body)
+
+            self.assert_mock_args(m, '/hi', body=json.dumps(request_body))
+
+    @gen_test
+    def test_request_body_string(self):
+        client = AsyncfluxClient()
+        request_body = '{"foo": "bar"}'
+
+        with self.patch_fetch_mock(client) as m:
+            self.setup_fetch_mock(m, 204)
+            yield client.request('/hi', body=request_body)
+
+            self.assert_mock_args(m, '/hi', body=request_body)
 
     @gen_test
     def test_ping(self):
