@@ -2,6 +2,7 @@
 from influxdb.exceptions import InfluxDBClientError
 
 from asyncflux import AsyncfluxClient
+from asyncflux.database import Database
 from asyncflux.retentionpolicy import RetentionPolicy
 from asyncflux.testing import AsyncfluxTestCase, gen_test
 
@@ -208,3 +209,17 @@ class RetentionPolicyTestCase(AsyncfluxTestCase):
 
             self.assertEqual(str(cm.exception), 'retention policy not found')
             self.assert_mock_args(m, '/query', query=query)
+
+    def test_repr(self):
+        host = 'localhost'
+        port = 8086
+        client = AsyncfluxClient(host, port)
+        db_name = 'db'
+        database = Database(client, db_name)
+        rp_name = 'foo'
+        retention_policy = RetentionPolicy(database, rp_name, '3d',
+                                           replication=1)
+        repr_format_string = ("RetentionPolicy(Database(AsyncfluxClient('%s', "
+                              "%d), '%s'), '%s')")
+        self.assertEqual(repr(retention_policy),
+                         (repr_format_string % (host, port, db_name, rp_name)))
