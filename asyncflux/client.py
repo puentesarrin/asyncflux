@@ -112,14 +112,11 @@ class AsyncfluxClient(object):
         yield self.request('/ping')
 
     @asyncflux_coroutine
-    def query(self, query, params=None, epoch=None, database=None,
-              raise_errors=True):
+    def query(self, query, params=None, database=None, raise_errors=True):
         params = params or {}
         params['q'] = query
         if database:
             params['db'] = database
-        if epoch:
-            params['epoch'] = epoch
 
         response = yield self.request('/query', qs=params)
         result_set = [
