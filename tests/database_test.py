@@ -385,6 +385,85 @@ class DatabaseTestCase(AsyncfluxTestCase):
             self.assert_mock_args(m, '/query', query=query, qs={'db': db_name})
 
     @gen_test
+    def test_get_measurements_with_limit(self):
+        client = AsyncfluxClient()
+        response_body = {
+            'results': [
+                {
+                    'series': [
+                        {
+                            'name': 'measurements',
+                            'columns': ['name'],
+                            'values': [["cpu_load"]]
+                        }
+                    ]
+                }
+            ]
+        }
+        db_name = 'foo'
+        query = 'SHOW MEASUREMENTS LIMIT 1'
+
+        with self.patch_fetch_mock(client) as m:
+            self.setup_fetch_mock(m, 200, body=response_body)
+            response = yield client[db_name].get_measurements(limit=1)
+
+            self.assertEqual(response, ['cpu_load'])
+            self.assert_mock_args(m, '/query', query=query, qs={'db': db_name})
+
+    @gen_test
+    def test_get_measurements_with_offset(self):
+        client = AsyncfluxClient()
+        response_body = {
+            'results': [
+                {
+                    'series': [
+                        {
+                            'name': 'measurements',
+                            'columns': ['name'],
+                            'values': [["cpu_load"]]
+                        }
+                    ]
+                }
+            ]
+        }
+        db_name = 'foo'
+        query = 'SHOW MEASUREMENTS OFFSET 3'
+
+        with self.patch_fetch_mock(client) as m:
+            self.setup_fetch_mock(m, 200, body=response_body)
+            response = yield client[db_name].get_measurements(offset=3)
+
+            self.assertEqual(response, ['cpu_load'])
+            self.assert_mock_args(m, '/query', query=query, qs={'db': db_name})
+
+    @gen_test
+    def test_get_measurements_with_limit_and_offset(self):
+        client = AsyncfluxClient()
+        response_body = {
+            'results': [
+                {
+                    'series': [
+                        {
+                            'name': 'measurements',
+                            'columns': ['name'],
+                            'values': [["cpu_load"]]
+                        }
+                    ]
+                }
+            ]
+        }
+        db_name = 'foo'
+        query = 'SHOW MEASUREMENTS LIMIT 1 OFFSET 3'
+
+        with self.patch_fetch_mock(client) as m:
+            self.setup_fetch_mock(m, 200, body=response_body)
+            response = yield client[db_name].get_measurements(limit=1,
+                                                              offset=3)
+
+            self.assertEqual(response, ['cpu_load'])
+            self.assert_mock_args(m, '/query', query=query, qs={'db': db_name})
+
+    @gen_test
     def test_get_tag_keys(self):
         client = AsyncfluxClient()
         response_body = {
