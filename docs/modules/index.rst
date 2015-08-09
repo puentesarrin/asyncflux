@@ -5,9 +5,7 @@ Package Documentation
 ------------------------
 
 .. automodule:: asyncflux.__init__
-    :members:
-    :undoc-members:
-    :show-inheritance:
+   :members:
 
 :mod:`asyncflux` Modules
 ------------------------
