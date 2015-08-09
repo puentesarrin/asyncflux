@@ -4,8 +4,9 @@ Package Documentation
 :mod:`asyncflux` Package
 ------------------------
 
-.. automodule:: asyncflux.__init__
-   :members:
+.. currentmodule:: asyncflux
+
+.. autodata:: version
 
 :mod:`asyncflux` Modules
 ------------------------
