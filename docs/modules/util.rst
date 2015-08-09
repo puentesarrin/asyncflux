@@ -1,8 +1,11 @@
 :mod:`asyncflux.util` -- General-purpose utilities
 --------------------------------------------------
 
-.. automodule:: asyncflux.util
-    :synopsis: General-purpose utilities
-    :members:
-    :undoc-members:
-    :member-order: bysource
+.. module:: asyncflux.util
+   :synopsis: General-purpose utilities
+
+.. autofunction:: asyncflux_coroutine
+
+.. autofunction:: sanitize_url
+
+.. autofunction:: batches

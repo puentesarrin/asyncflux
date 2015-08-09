@@ -1,8 +1,10 @@
 :mod:`asyncflux.database` -- Database level operations
 ------------------------------------------------------
 
-.. automodule:: asyncflux.database
-    :synopsis: Database level operations
-    :members:
-    :undoc-members:
-    :member-order: bysource
+.. module:: asyncflux.database
+   :synopsis: Database level operations
+
+.. autoclass:: Database
+   :members:
+   :undoc-members:
+   :member-order: bysource

@@ -1,8 +1,10 @@
 :mod:`asyncflux.user` -- Tools for InfluxDB users
 -------------------------------------------------
 
-.. automodule:: asyncflux.user
-    :synopsis: Tools for InfluxDB users
-    :members:
-    :undoc-members:
-    :member-order: bysource
+.. module:: asyncflux.user
+   :synopsis: Tools for InfluxDB users
+
+.. autoclass:: User
+   :members:
+   :undoc-members:
+   :member-order: bysource
