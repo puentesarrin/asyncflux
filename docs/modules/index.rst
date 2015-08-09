@@ -17,6 +17,7 @@ Package Documentation
 
    client
    database
-   clusteradmins
+   user
+   retentionpolicy
    testing
    util
