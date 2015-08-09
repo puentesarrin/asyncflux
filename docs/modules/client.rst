@@ -1,8 +1,13 @@
 :mod:`asyncflux.client` -- Connection to InfluxDB
 -------------------------------------------------
 
-.. automodule:: asyncflux.client
-    :synopsis: Connection to InfluxDB
-    :members:
-    :undoc-members:
-    :show-inheritance:
+.. currentmodule:: asyncflux.client
+
+.. autoclass:: AsyncfluxClient
+   :members:
+   :undoc-members:
+
+   .. describe:: client[db_name] || client.db_name
+
+      Get the `db_name` :class:`~database.Database` on :class:`AsyncfluxClient`
+      `client`.
