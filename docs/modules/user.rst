@@ -5,3 +5,4 @@
     :synopsis: Tools for InfluxDB users
     :members:
     :undoc-members:
+    :member-order: bysource

@@ -5,3 +5,4 @@
     :synopsis: Tools for databases' retention policies
     :members:
     :undoc-members:
+    :member-order: bysource

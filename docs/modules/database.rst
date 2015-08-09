@@ -5,3 +5,4 @@
     :synopsis: Database level operations
     :members:
     :undoc-members:
+    :member-order: bysource

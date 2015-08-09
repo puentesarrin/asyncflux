@@ -5,3 +5,4 @@
     :synopsis: Unit testing support for asynchronous code
     :members:
     :undoc-members:
+    :member-order: bysource

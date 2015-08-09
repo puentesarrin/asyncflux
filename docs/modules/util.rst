@@ -5,3 +5,4 @@
     :synopsis: General-purpose utilities
     :members:
     :undoc-members:
+    :member-order: bysource
