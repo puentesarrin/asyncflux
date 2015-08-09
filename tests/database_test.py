@@ -450,6 +450,59 @@ class DatabaseTestCase(AsyncfluxTestCase):
             self.assert_mock_args(m, '/query', query=query, qs={'db': db_name})
 
     @gen_test
+    def test_get_tag_values(self):
+        client = AsyncfluxClient()
+        response_body = {
+            'results': [
+                {
+                    'series': [
+                        {
+                            'name': 'hostTagValues',
+                            'columns': ['host'],
+                            'values': [
+                                ['server01'], ['server02'], ['server03']
+                            ]
+                        }
+                    ]
+                }
+            ]
+        }
+        query = 'SHOW TAG VALUES WITH KEY = "host"'
+
+        with self.patch_fetch_mock(client) as m:
+            self.setup_fetch_mock(m, 200, body=response_body)
+            response = yield client.foo.get_tag_values('host')
+
+            self.assertListEqual(response, ['server01', 'server02', 'server03'])
+            self.assert_mock_args(m, '/query', query=query, qs={'db': 'foo'})
+
+    @gen_test
+    def test_get_tag_values_from_measurement(self):
+        client = AsyncfluxClient()
+        response_body = {
+            'results': [
+                {
+                    'series': [
+                        {
+                            'name': 'regionTagValues',
+                            'columns': ['region'],
+                            'values': [['us-east-a1']]
+                        }
+                    ]
+                }
+            ]
+        }
+        query = 'SHOW TAG VALUES FROM "cpu_load" WITH KEY = "region"'
+
+        with self.patch_fetch_mock(client) as m:
+            self.setup_fetch_mock(m, 200, body=response_body)
+            response = yield client.foo.get_tag_values('region',
+                                                       measurement='cpu_load')
+
+            self.assertListEqual(response, ['us-east-a1'])
+            self.assert_mock_args(m, '/query', query=query, qs={'db': 'foo'})
+
+    @gen_test
     def test_get_series(self):
         client = AsyncfluxClient()
         serie_values = [

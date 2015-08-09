@@ -90,6 +90,20 @@ class Database(object):
         raise gen.Return(tag_keys)
 
     @asyncflux_coroutine
+    def get_tag_values(self, key, measurement=None):
+        query_list = ['SHOW TAG VALUES']
+        if measurement:
+            query_list.append('FROM "{}"'.format(measurement))
+        query_list.append('WITH KEY = "{}"'.format(key))
+        result_set = yield self.query(' '.join(query_list))
+        values = [
+            point[key]
+            for point
+            in result_set[0].get_points()
+        ]
+        raise gen.Return(values)
+
+    @asyncflux_coroutine
     def get_series(self):
         result_set = yield self.query('SHOW SERIES')
         series = []
