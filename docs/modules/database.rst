@@ -7,4 +7,3 @@
 .. autoclass:: Database
    :members:
    :undoc-members:
-   :member-order: bysource

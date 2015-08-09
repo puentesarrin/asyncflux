@@ -7,7 +7,6 @@
 .. autoclass:: AsyncfluxClient
    :members:
    :undoc-members:
-   :member-order: bysource
 
    .. describe:: client[db_name] || client.db_name
 

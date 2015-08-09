@@ -7,4 +7,3 @@
 .. autoclass:: RetentionPolicy
    :members:
    :undoc-members:
-   :member-order: bysource

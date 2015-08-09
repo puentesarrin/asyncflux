@@ -7,6 +7,5 @@
 .. autoclass:: AsyncfluxTestCase
    :members:
    :undoc-members:
-   :member-order: bysource
 
 .. autofunction:: gen_test
