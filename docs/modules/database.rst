@@ -5,4 +5,3 @@
     :synopsis: Database level operations
     :members:
     :undoc-members:
-    :show-inheritance:

@@ -5,4 +5,3 @@
     :synopsis: Unit testing support for asynchronous code
     :members:
     :undoc-members:
-    :show-inheritance:

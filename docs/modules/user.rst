@@ -5,4 +5,3 @@
     :synopsis: Tools for InfluxDB users
     :members:
     :undoc-members:
-    :show-inheritance:
