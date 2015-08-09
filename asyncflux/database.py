@@ -114,8 +114,13 @@ class Database(object):
         raise gen.Return(values)
 
     @asyncflux_coroutine
-    def get_series(self):
-        result_set = yield self.query('SHOW SERIES')
+    def get_series(self, limit=None, offset=None):
+        query_list = ['SHOW SERIES']
+        if limit:
+            query_list.append('LIMIT {}'.format(limit))
+        if offset:
+            query_list.append('OFFSET {}'.format(offset))
+        result_set = yield self.query(' '.join(query_list))
         series = []
         for serie in result_set[0].items():
             series.append({'name': serie[0][0],

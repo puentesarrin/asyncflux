@@ -741,6 +741,118 @@ class DatabaseTestCase(AsyncfluxTestCase):
                                   qs={'db': db_name})
 
     @gen_test
+    def test_get_series_with_limit(self):
+        client = AsyncfluxClient()
+        serie_values = [
+            [
+                'cpu_load_short,host=server01,region=us-east-a1',
+                'server01',
+                'us-east-a1'
+            ]
+        ]
+        response_body = {
+            'results': [
+                {
+                    'series': [
+                        {
+                            'name': 'cpu_load',
+                            'columns': ['_key', 'host', 'region'],
+                            'values': serie_values
+                        }
+                    ]
+                }
+            ]
+        }
+        db_name = 'foo'
+        query = 'SHOW SERIES LIMIT 1'
+
+        with self.patch_fetch_mock(client) as m:
+            self.setup_fetch_mock(m, 200, body=response_body)
+            response = yield client[db_name].get_series(limit=1)
+
+            self.assertEqual(len(response[0].get('tags', [])),
+                             len(serie_values))
+            self.assert_mock_args(m, '/query', query=query, qs={'db': db_name})
+
+    @gen_test
+    def test_get_series_with_offset(self):
+        client = AsyncfluxClient()
+        serie_values = [
+            [
+                'cpu_load_short,host=server01,region=us-east-a1',
+                'server01',
+                'us-east-a1'
+            ],
+            [
+                'cpu_load_short,host=server02,region=us-east-a1',
+                'server02',
+                'us-east-a1'
+            ]
+        ]
+        response_body = {
+            'results': [
+                {
+                    'series': [
+                        {
+                            'name': 'cpu_load',
+                            'columns': ['_key', 'host', 'region'],
+                            'values': serie_values
+                        }
+                    ]
+                }
+            ]
+        }
+        db_name = 'foo'
+        query = 'SHOW SERIES OFFSET 10'
+
+        with self.patch_fetch_mock(client) as m:
+            self.setup_fetch_mock(m, 200, body=response_body)
+            response = yield client[db_name].get_series(offset=10)
+
+            self.assertEqual(len(response[0].get('tags', [])),
+                             len(serie_values))
+            self.assert_mock_args(m, '/query', query=query, qs={'db': db_name})
+
+    @gen_test
+    def test_get_series_with_limit_and_offset(self):
+        client = AsyncfluxClient()
+        serie_values = [
+            [
+                'cpu_load_short,host=server01,region=us-east-a1',
+                'server01',
+                'us-east-a1'
+            ],
+            [
+                'cpu_load_short,host=server02,region=us-east-a1',
+                'server02',
+                'us-east-a1'
+            ]
+        ]
+        response_body = {
+            'results': [
+                {
+                    'series': [
+                        {
+                            'name': 'cpu_load',
+                            'columns': ['_key', 'host', 'region'],
+                            'values': serie_values
+                        }
+                    ]
+                }
+            ]
+        }
+        db_name = 'foo'
+        query = 'SHOW SERIES LIMIT 2 OFFSET 6'
+
+        with self.patch_fetch_mock(client) as m:
+            self.setup_fetch_mock(m, 200, body=response_body)
+            response = yield client[db_name].get_series(limit=2, offset=6)
+
+            self.assertEqual(len(response[0].get('tags', [])),
+                             len(serie_values))
+            self.assert_mock_args(m, '/query', query=query, qs={'db': db_name})
+
+    @gen_test
     def test_drop_series(self):
         client = AsyncfluxClient()
         response_body = {'results': [{}]}
