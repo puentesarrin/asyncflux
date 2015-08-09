@@ -90,16 +90,22 @@ class Database(object):
         raise gen.Return(tag_keys)
 
     @asyncflux_coroutine
-    def get_tag_values(self, key, measurement=None):
+    def get_tag_values(self, key_or_keys, measurement=None):
         query_list = ['SHOW TAG VALUES']
         if measurement:
             query_list.append('FROM "{}"'.format(measurement))
-        query_list.append('WITH KEY = "{}"'.format(key))
+        keys = (
+            key_or_keys
+            if isinstance(key_or_keys, (list, tuple))
+            else [key_or_keys]
+        )
+        keys_str = ','.join('"%s"' % key for key in keys)
+        query_list.append('WITH KEY IN ({})'.format(keys_str))
         result_set = yield self.query(' '.join(query_list))
         values = [
-            point[key]
-            for point
-            in result_set[0].get_points()
+            (i['columns'][0], sum(i['values'], []))
+            for i
+            in result_set[0].raw.get('series', [])
         ]
         raise gen.Return(values)
 
