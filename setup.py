@@ -77,5 +77,6 @@ setup(
         'Programming Language :: Python :: Implementation :: CPython',
         'Programming Language :: Python :: Implementation :: PyPy'],
     test_suite='tests.runtests',
-    cmdclass={"doc": DocCommand}
+    cmdclass={"doc": DocCommand},
+    zip_safe=False
 )
