@@ -7,7 +7,7 @@ python:
   - pypy
 install:
   - pip install -U pep8 pyflakes mock coverage coveralls
-  - pip install . --use-mirrors
+  - pip install .
 script: coverage run tests/runtests.py
 after_success:
   - coveralls
