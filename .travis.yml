@@ -8,6 +8,6 @@ python:
 install:
   - pip install -U pep8 pyflakes mock coverage coveralls
   - pip install .
-script: coverage run tests/runtests.py
+script: coverage run tests/runtests.py -v
 after_success:
   - coveralls
